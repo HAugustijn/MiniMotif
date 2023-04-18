@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__
+nisin/*
+.mypy_cache
+.pytest_cache
+.cache

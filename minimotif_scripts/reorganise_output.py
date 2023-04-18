@@ -5,7 +5,7 @@ import re
 import shutil
 
 
-def movetodir(outdir, dirname, pattern):
+def movetodir(outdir, dirname, patterns):
     """ moves files matching a pattern into new directory
     parameters
     ----------
@@ -23,8 +23,12 @@ def movetodir(outdir, dirname, pattern):
         pass
     # Move files into new directory
     for f in os.listdir(outdir):
-        if re.search(pattern, f):
-            try:
-                shutil.move(os.path.join(outdir, f), os.path.join(outdir, dirname))
-            except:
-                pass
+        for pattern in patterns:
+            if re.search(pattern, f):
+                if "results.tsv" in f:
+                    pass
+                else:
+                    try:
+                        shutil.move(os.path.join(outdir, f), os.path.join(outdir, dirname))
+                    except:
+                        pass
