@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from MiniMotif.minimotif_scripts import *
+from minimotif_scripts import *
 import argparse
 import os
 import json as jsonlib
@@ -29,7 +29,7 @@ parser.add_argument("-G", "--genbank", nargs='+', help=argparse.SUPPRESS,
 parser.add_argument("-w", "--min_width", help=argparse.SUPPRESS,
                     required=False, default=10)
 parser.add_argument("-ps", "--pseudocount", help=argparse.SUPPRESS,
-                   required=False, default=0.1)
+                    required=False, default=0.1)
 parser.add_argument("-l", "--logo", help=argparse.SUPPRESS,
                     required=False, action='store_true')
 parser.add_argument("-co", "--coding", help=argparse.SUPPRESS,
@@ -105,37 +105,48 @@ else:
                 # run MEME to extract the binding motif from the input sequences
                 meme_resutls = run_meme(input_file, args.outdir, args.min_width)
                 con_motif, motifs = parse_meme(meme_resutls)
+                if not con_motif:
+                    pass
+                else:
+                    # functions are part of generate_sequence_logo.py
+                    pfm = create_pfm(motifs)  # construct position frequency matrix (PFM)
+                    shan_ic = get_ic(pfm)  # calculate information content (IC)
+                    if args.logo:
+                        create_logo(shan_ic, reg_name, args.outdir)
 
-                # functions are part of generate_sequence_logo.py
-                pfm = create_pfm(motifs)  # construct position frequency matrix (PFM)
-                shan_ic = get_ic(pfm)  # calculate information content (IC)
-                if args.logo:
-                    create_logo(shan_ic, reg_name, args.outdir)
+                    # functions are part of method_selection.py
+                    mean_ic = calc_mean_ic(shan_ic)
+                    for genbank_file in args.genbank:
+                        if len(shan_ic) >= 10:
+                            if mean_ic < 0.8:  # functions are part of detection_hmm.py
+                                print(f"Running HMM detection for a gapped sequence motif")
+                                hmm_models = prep_hmm_detection(input_file, reg_name, args.mode,
+                                                                args.ic_threshold, args.outdir)
+                                run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
+                                                  args.adjust_length, args.outdir)
 
-                # functions are part of method_selection.py
-                mean_ic = calc_mean_ic(shan_ic)
-                for genbank_file in args.genbank:
-                    if mean_ic < 0.8:  # functions are part of detection_hmm.py
-                        print(f"Running HMM detection for a gapped sequence motif")
-                        hmm_models = prep_hmm_detection(input_file, reg_name, args.mode,
-                                                        args.ic_threshold, args.outdir)
-                        run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                          args.adjust_length, args.outdir)
+                            elif 0.8 <= mean_ic <= 1.2:  # functions are part of both detection_pwm/hmm.py
+                                print(f"Running both HMM and PWM detection")
+                                ic_threshold = 1.4
+                                mode = "positional_masking"
+                                run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                                  GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
+                                                  args.outdir)
+                                hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold, args.outdir)
+                                run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
+                                                  args.adjust_length, args.outdir)
 
-                    elif 0.8 <= mean_ic <= 1.2:  # functions are part of both detection_pwm/hmm.py
-                        print(f"Running both HMM and PWM detection")
-                        ic_threshold = 1.4
-                        mode = "positional_masking"
-                        run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
-                                      GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch, args.outdir)
-                        hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold, args.outdir)
-                        run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                          args.adjust_length, args.outdir)
+                            elif mean_ic >= 1.2:  # functions are part of detection_pwm.py
+                                print(f"Running PWM detection for a ungapped sequence motif")
+                                run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                                  GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
+                                                  args.outdir)
+                        else:  # run PWM detection for short sequence motifs
+                            print(f"Running PWM detection for a short sequence motif")
+                            run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                              GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
+                                              args.outdir)
 
-                    elif mean_ic >= 1.2:  # functions are part of detection_pwm.py
-                        print(f"Running PWM detection for a ungapped sequence motif")
-                        run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
-                                      GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch, args.outdir)
         extensions_to_move = [".sto", ".hmm", ".fasta", ".meme", ".moods", "PWM.tsv"]
         movetodir(args.outdir + os.sep, "bin", extensions_to_move)
     else:

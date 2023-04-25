@@ -44,9 +44,6 @@ def parse_motif_coordinates(meme_out):
             start_motif = num
         elif line.startswith("//"):
             end_motif = num
-    if not consensus_motif:
-        print("Could not parse results from the MEME output. Please check the MEME output")
-        sys.exit()
     return consensus_motif, start_motif, end_motif
 
 
@@ -55,10 +52,13 @@ def parse_meme(meme_results):
     motif_list = []
     with open(meme_results, "r") as meme_out:
         consensus_motif, start_motif, end_motif = parse_motif_coordinates(meme_out)
-        # seek the index in the file and extract the motifs
-        meme_out.seek(0)
-        txt = meme_out.readlines()
-        motifs = txt[start_motif: end_motif - 1]
-        for motif in motifs:
-            motif_list.append(motif.split(" ")[-4])
+        if not consensus_motif:
+            print("Could not parse results from the MEME output. Please check the MEME output")
+        else:
+            # seek the index in the file and extract the motifs
+            meme_out.seek(0)
+            txt = meme_out.readlines()
+            motifs = txt[start_motif: end_motif - 1]
+            for motif in motifs:
+                motif_list.append(motif.split(" ")[-4])
     return consensus_motif, motif_list

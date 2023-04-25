@@ -111,8 +111,7 @@ def sh_max_finder(msa_obj):
     max_ent_pos_sum = ""
 
     # To avoid considering a position that contains gaps, for a max information
-    # content position, we calculate the information content of ungapped
-    # positions
+    # content position, we calculate the information content of ungapped positions
     for col_no in range(len(list(msa_obj[0]))):
         column_nuc_list = list(msa_obj[:, col_no])
         shannon_entropy_list_gapped.append(shannon_entropy(column_nuc_list))
@@ -120,8 +119,9 @@ def sh_max_finder(msa_obj):
             if "-" not in column_nuc_list:
                 shannon_entropy_list_ungapped.append(
                     shannon_entropy(column_nuc_list))
-            # Extract the ungapped position with the max Shannon's entropy
-            max_ent_pos_value = max(shannon_entropy_list_ungapped)
+                max_ent_pos_value = max(shannon_entropy_list_ungapped)
+            else:
+                max_ent_pos_value = max(shannon_entropy_list_gapped)
             max_ent_pos_index = shannon_entropy_list_gapped.index(max_ent_pos_value)
             max_ent_pos_sum = max_ent_pos_index, max_ent_pos_value
         else:
