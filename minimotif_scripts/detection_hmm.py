@@ -1,4 +1,4 @@
-"""  """
+""" Script containing all functions for TFBS detection using HMMs """
 import os
 import subprocess
 from Bio import SeqIO
@@ -7,6 +7,10 @@ from Bio import SeqIO
 def nhmmscan_wrapper(fasta_file, reg_name, gb_name, reg_type, hmm_db_file, outdir):
     """Runs nhmmscan against multiple DNA query sequences
 
+    :param outdir: path to the output directory
+    :param reg_type: string, regulatory type
+    :param gb_name: string, name of the gb file
+    :param reg_name: string, name of the regulator
     :param fasta_file: DNA query fasta file
     :param hmm_db_file:Pressed pHMM model database file
     :return:tab_out_list: nhmmscan output in tabular format
@@ -89,12 +93,16 @@ def nhmmscan_out_parser(nhmmscan_tab, motif_length_list, adjust_length,
                         outdir, reg_type, gb_name, reg_name):
     """Parses hits that are adequately aligned with the model from nhmmscan out
 
-    :param nhmmscan_tab_list: nhmmscan output tabular format
+    :param nhmmscan_tab: nhmmscan output tabular format
     :param motif_length_list:List of tuples, (model_name,model_length)
     :param adjust_length: int, defines the allowed difference between
     the length of the model and the alignment between a hit and the model.
     If 0 only full alignments are allowed. If 1, alignments that are
     model_length - 1 are also included to the output.
+    :param outdir: path to the output directory
+    :param reg_type: string, regulatory type
+    :param gb_name: string, name of the gb file
+    :param reg_name: string, name of the regulator
     :return:proc_output_filenames, parsed nhmmscan output filenames
     full_length_real_hits: List of hits that are fully aligned with the
     model
@@ -293,6 +301,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand, a
     :param start_pos:str, position that the genomic region starts
     :param end_pos:str, position that the genomic region ends
     :param strand:str, '+' or '-"
+    :param al_type: str, full or partial depending on the input length
     :param model_length: int, length of the model that is aligned with the
     sequence of interest.
     If 0 only full alignments are allowed. If 1, alignments with length
@@ -349,12 +358,13 @@ def genes_with_bs_finder(processed_output_filenames, gene_orient_dict, product_d
     :param gene_orient_dict: A dict with genes as keys and '+' or '-' as values
     :param product_dict:  A dict with genes as keys and the annotated gene
     gene product as value
-    :param fasta_file_list: DNA query fasta files
-    :param full_length_real_hits: List of hits that are fully aligned with the
-    model
-    :param partial_length_real_hits: List of hits that are partially aligned
-    with the model.
-    :return: None
+    :param fasta_file: DNA query fasta files
+    :param full_len: List of hits that are fully aligned with the model
+    :param partial_len: List of hits that are partially aligned with the model
+    :param outdir: path to the output directory
+    :param reg_type: string, regulatory type
+    :param gb_name: string, name of the gb file
+    :param reg_name: string, name of the regulator
     """
     sfbs_list = []
     output_filename = f"{outdir}/{reg_name}_{gb_name}_{reg_type}_hmm_results.tsv"
@@ -398,7 +408,16 @@ def genes_with_bs_finder(processed_output_filenames, gene_orient_dict, product_d
 
 
 def run_hmm_detection(gbk_file, reg_name, hmm_models, coding, adj_len, outdir):
-    """  """
+    """ Wrapper function for running the HMM detection
+
+    :param hmm_models: hmm models created by the prep_hmm_detection.py script
+    :param coding: True/False, detect for coding regions
+    :param adj_len: float, adjust the length of the alignments
+    :param outdir: path to the output directory
+    :param gbk_file: string, name of the gb file
+    :param reg_name: string, name of the regulator
+
+     """
     gb_name = (gbk_file).split("/")[-1].split(".")[0]
     reg_fasta = f"{outdir}/{gb_name}_reg_region.fasta"
 

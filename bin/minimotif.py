@@ -6,18 +6,38 @@ import os
 import json as jsonlib
 
 parser = argparse.ArgumentParser(description="", usage='''
--_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
+-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
 Generic command: 
-     minimotif.py -I [binding_profiles] -G [genome] -O [outdir]
-_________________________________________________________________________
+     minimotif.py -i [binding_profiles] -G [genome] -O [outdir]
+_____________________________________________________________________________________________
 Mandatory arguments:
-    -I  Provide the binding profiles in fasta format
     -G  Provide a genbank file of the genome of interest for TFBS scanning
     -O  Put the path to the output folder where results should be deposited
 
 Optional arguments:
+    -i  Provide the binding profiles in fasta format
+    -w  Minimal width of the meme detection module. Default: 10
+    -ps Pseudocount used to generate the PWM matrices. Default: 0.1
+    -l  Use this flag to output .png sequence logo files
+    -co Include this flag to detect TFBSs occurrences in coding regions
+    -r  Range of the regulatory region. Default: -350 50
+    -c  Range between genes that are considered to be co-regulated. Default: -50 40
+    -p  P-value threshold used for the PWM detection module. Default: 0.00001
+    -pc Add this flag to run on pre-calculated PWM matrices
+    -b  Run MOODS in batch mode. In this mode, the p-value is not separately 
+        calculated which increases the run speed. Default: True
+    -m  Mode for the HMM detection module. Options: spacer_masking or positional_masking.
+        Positional_masking masks nucleotides individually, if their information content 
+        is over the given threshold. Spacer_masking assumes that nucleotides belonging 
+        to -10 and -35 regions are significantly more conserved than the spacer nucleotides.
+        Default: spacer_masking
+    -ic Information content threshold. Default: 1.0
+    -la Adjust the length of the alignments that are outputted from the 
+        script, in comparison with full alignments. The default is 1 nucleotide
+        less than the global alignment between pHMM models and the query
+        sequence. Default: 1
 
--_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
+-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
 ''')
 
 parser.add_argument("-i", "--input", nargs='+', help=argparse.SUPPRESS,
@@ -48,7 +68,7 @@ parser.add_argument("-m", "--mode", help=argparse.SUPPRESS,
                     required=False, default="spacer_masking")
 parser.add_argument("-ic", "--ic_threshold", type=float,
                     help=argparse.SUPPRESS, required=False, default=1.0)
-parser.add_argument("-ladj", "--adjust_length", type=float,
+parser.add_argument("-la", "--adjust_length", type=float,
                     help=argparse.SUPPRESS, required=False, default=1)
 
 args = parser.parse_args()

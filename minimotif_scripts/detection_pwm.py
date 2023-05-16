@@ -1,4 +1,4 @@
-"""  """
+""" Script containing all functions for TFBS detection using PWMs """
 
 import pandas as pd
 import seqlogo
@@ -8,7 +8,15 @@ import subprocess
 
 
 def create_pwm(pfm, pscount, outdir, reg_name):
-    """ creates a position wight matrix of a position frequency matrix"""
+    """ creates a position wight matrix of a position frequency matrix
+
+    :param pfm: position frequency matrix as array
+    :param pscount: float, pseudocount to create the matrix
+    :param outdir: path to the output directory
+    :param reg_name: str, name of the regulator
+    :returns: pwm_file: path to the output pwm_file.
+    pwm: position weight matrix as dataframe
+    """
     pwm_file = f"{outdir}/{reg_name}_PWM.tsv"
     pwm = (seqlogo.pfm2pwm(pd.DataFrame.from_dict(pfm), background=None, pseudocount=pscount)).T
     pwm.to_csv(pwm_file, sep="\t", index=False, index_label=False, header=False)
@@ -16,14 +24,18 @@ def create_pwm(pfm, pscount, outdir, reg_name):
 
 
 def get_sequence_gc_content(sequence):
-    """ calculate the GC content of the bgc region's sequence """
+    """ calculate the GC content of the bgc region's sequence
+    :param sequence: str, DNA sequence
+    :returns: float, GC content """
     counter = Counter(sequence)
     return sum(counter[char] for char in "GC") / len(sequence)
 
 
 def get_bg_distribution(sequence):
-    """ calculate background distribution based on GC percentage of the
-    query sequence """
+    """ calculate background distribution based on GC percentage of the query sequence
+    :param sequence: str, DNA sequence
+    :returns: tuple (AT percentage, GC percentage, GC percentage, AT percentage)
+    """
     gc_percentage = get_sequence_gc_content(sequence) / 2
     at_percentage = 0.5 - gc_percentage
     percentage = ' '.join(map(str, (at_percentage, gc_percentage,
@@ -33,7 +45,18 @@ def get_bg_distribution(sequence):
 
 def run_moods(fasta_file, pwm, reg_type, reg_name, outdir, bg_dist,
               gb_name, threshold, batch):
-    """ Run moods to scan sequences with a PWM """
+    """ Run moods to scan sequences with a PWM
+    :param fasta_file: path to fasta file for the input regulator
+    :param pwm: path to pwm file
+    :param outdir: path to the output directory
+    :param reg_type: str, type of regulator
+    :param reg_name: str, name of the regulator
+    :param bg_dist: tuple, background distribution
+    :param gb_name: str, name of the genbank file
+    :param threshold: float, detection threshold value
+    :param batch: True/False, run MOODS in batch mode
+    :returns: outfile: path to MOODS output file
+    """
 
     outfile = f"{outdir}/{reg_name}_{gb_name}_{reg_type}.moods"
 
@@ -54,7 +77,14 @@ def run_moods(fasta_file, pwm, reg_type, reg_name, outdir, bg_dist,
 
 
 def parse_moods(moods_results, reg_name, gb_name, reg_type, thres, outdir):
-    """ parse results from MOODS output """
+    """ parse results from MOODS output
+    :param moods_results: path to MOODS output file
+    :param outdir: path to the output directory
+    :param reg_type: str, type of regulator
+    :param reg_name: str, name of the regulator
+    :param gb_name: str, name of the genbank file
+    :param thres: float, threshold for detection
+    """
     out_dict = {}
     with open(moods_results, "r") as moods_output:
         for line in moods_output:
@@ -75,7 +105,10 @@ def parse_moods(moods_results, reg_name, gb_name, reg_type, thres, outdir):
 
 
 def set_confidence(score, thresholds):
-    """ From the moods results score and pwm threshold, determine the confidence """
+    """ From the moods results score and pwm threshold, determine the confidence
+    :param score: float, hit score
+    :param thresholds: float, hit threshold
+    """
     med_str_thres = (thresholds[1] + thresholds[0]) / 2
     if score <= thresholds[1]:
         return "weak"
