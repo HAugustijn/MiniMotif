@@ -78,13 +78,13 @@ GB_REGIONS = {}
 if not os.path.exists(args.outdir):
     os.mkdir(args.outdir)
 
-
+# TODO: This is optimised to receive multiple genbank files, shall the documentation be updated?
 for genbank_file in args.genbank:
     # functions are part of parse_genbank.py
     gb_name = genbank_file.split("/")[-1].split(".")[0]
     if is_gbk(genbank_file):  # check gbk format
         print(f"Extracting sequences from genbank file: {gb_name}")
-        reg_region, co_region, complete_seq = extract_regions(genbank_file, args.coregion, args.regregion)
+        reg_region, co_region, complete_seq, gene_strand_dict, product_dict = parse_gb(genbank_file, args.coregion, args.regregion)
         GB_REGIONS[genbank_file] = complete_seq
         if args.coding:
             write_fastas(co_region, "co", gb_name, args.outdir)
@@ -123,8 +123,8 @@ else:
             if is_fasta(input_file):  # check fasta format
                 print(f"Analysing regulator: {reg_name}")
                 # run MEME to extract the binding motif from the input sequences
-                meme_resutls = run_meme(input_file, args.outdir, args.min_width)
-                con_motif, motifs = parse_meme(meme_resutls)
+                meme_results = run_meme(input_file, args.outdir, args.min_width)
+                con_motif, motifs = parse_meme(meme_results)
                 if not con_motif:
                     pass
                 else:
@@ -143,7 +143,7 @@ else:
                                 hmm_models = prep_hmm_detection(input_file, reg_name, args.mode,
                                                                 args.ic_threshold, args.outdir)
                                 run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                                  args.adjust_length, args.outdir)
+                                                  args.adjust_length, args.outdir, gene_strand_dict, product_dict)
 
                             elif 0.8 <= mean_ic <= 1.2:  # functions are part of both detection_pwm/hmm.py
                                 print(f"Running both HMM and PWM detection")
@@ -154,7 +154,7 @@ else:
                                                   args.outdir)
                                 hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold, args.outdir)
                                 run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                                  args.adjust_length, args.outdir)
+                                                  args.adjust_length, args.outdir, gene_strand_dict, product_dict)
 
                             elif mean_ic >= 1.2:  # functions are part of detection_pwm.py
                                 print(f"Running PWM detection for a ungapped sequence motif")

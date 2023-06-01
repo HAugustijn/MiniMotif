@@ -10,7 +10,7 @@ import numpy as np
 import re
 import pandas as pd
 
-
+#TODO: Is this function meant to align the fasta sequences? If so, it should be called align_sequences. Otherwise, AlignIO.convert can do the same.
 def convert_to_fasta(input_fasta, reg_name, outdir):
     """ convert the fasta file to a equal length fasta file """
     outfile = f"{outdir}/{reg_name}.fasta"
@@ -108,21 +108,22 @@ def sh_max_finder(msa_obj):
     """
     shannon_entropy_list_ungapped = []
     shannon_entropy_list_gapped = []
-    max_ent_pos_sum = ""
 
     # To avoid considering a position that contains gaps, for a max information
-    # content position, we calculate the information content of ungapped positions
+    # content position, we calculate the information content of ungapped
+    # positions
     for col_no in range(len(list(msa_obj[0]))):
         column_nuc_list = list(msa_obj[:, col_no])
-        shannon_entropy_list_gapped.append(shannon_entropy(column_nuc_list))
+        shannon_entropy_list_gapped.append(
+            shannon_entropy(column_nuc_list))
         if "N" not in column_nuc_list:
             if "-" not in column_nuc_list:
                 shannon_entropy_list_ungapped.append(
                     shannon_entropy(column_nuc_list))
-                max_ent_pos_value = max(shannon_entropy_list_ungapped)
-            else:
-                max_ent_pos_value = max(shannon_entropy_list_gapped)
-            max_ent_pos_index = shannon_entropy_list_gapped.index(max_ent_pos_value)
+            # Extract the ungapped position with the max Shannon's entropy
+            max_ent_pos_value = max(shannon_entropy_list_ungapped)
+            max_ent_pos_index = shannon_entropy_list_gapped.index(
+                max_ent_pos_value)
             max_ent_pos_sum = max_ent_pos_index, max_ent_pos_value
         else:
             if "-" not in column_nuc_list:
@@ -134,6 +135,7 @@ def sh_max_finder(msa_obj):
                 break
 
     return max_ent_pos_sum
+
 
 
 def create_msa_obj(np_array, seq_ids):
@@ -239,6 +241,7 @@ def run_alimask(msa_file, range_to_mask, outdir):
             subprocess.check_output(cmd_alimask, shell=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError:
         print('Unable to run alimask')
+        # TODO: Try running with different information content does not make much sense for me
         print('try running with a different information content')
     return alimask_out
 
@@ -488,7 +491,7 @@ def model_creator(full_msa_filename, reg_name, outdir):
     hmm_models = run_hmmbuild(full_msa_filename, f"{outdir}/{reg_name}.hmm")
     return hmm_models
 
-
+#TODO: Note: The length of each hmm model is also parsed from detection_hmm.py> motif_length_parser() function
 def parse_hmm(hmm_models):
     """parses the sigma_factor.hmm to extract the length of the sequence and
     the sequence itself
