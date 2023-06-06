@@ -13,14 +13,16 @@ def is_gbk(filename):
         else:
             return True
 
-
-def extract_regions(genbank_file, cotrans_region, reg_region):
+    # TODO: SOS Update documentation
+def parse_gb(genbank_file, cotrans_region, reg_region):
     """ Extracts coding and regulatory regions for genbank files """
     regulatory_region = []  # region in which TFBSs mostly occur
     coding_region = []  # CDS sequences of genes
     CDS_region = []  # used to store intermediate information
     counter = 0
-
+    no_product_genes_list = []
+    product_dict = {}
+    gene_strand_dict = {}
     with open(genbank_file, "r") as gb_file:
         # Parse genbank file and extract CDS regions of genome of interest
         for rec in SeqIO.parse(gb_file, "genbank"):
@@ -38,6 +40,16 @@ def extract_regions(genbank_file, cotrans_region, reg_region):
                             gene_name = gene_name[0]
                     else:
                         print(f"Couldn't identify the CDS locus tag in the following qualifiers: {f.qualifiers}")
+                    if "product" not in f.qualifiers.keys():
+                        f.qualifiers["product"] = "N/A"
+                        no_product_genes_list.append(gene_name)
+                    gene_strand = f.strand
+                    product_dict[gene_name] = f.qualifiers["product"]
+                    if gene_strand == 1:
+                        gene_strand_dict[gene_name] = "+"
+                    else:
+                        gene_strand_dict[gene_name] = "-"
+
                     if str(f.location).startswith("join"):
                         start = min(f.location)
                         end = max(f.location) + 1
@@ -74,7 +86,8 @@ def extract_regions(genbank_file, cotrans_region, reg_region):
                 intergene_seq = rec.seq[(CDS_region[-1][2]) + reg_region[0]:genome_length]
                 seq_region = f"{CDS_region[-1][2] + reg_region[0]}:{genome_length}"
                 regulatory_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
-    return regulatory_region, coding_region, complete_seq
+
+    return regulatory_region, coding_region, complete_seq, gene_strand_dict, product_dict
 
 
 def write_fastas(region, region_type, genome_name, outdir):
