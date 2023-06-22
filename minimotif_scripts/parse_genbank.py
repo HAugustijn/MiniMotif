@@ -4,7 +4,11 @@ from Bio import SeqIO
 
 
 def is_gbk(filename):
-    """ Determines if the input file is in genbank format """
+    """ Determines if the input file is in genbank format
+
+    :param filename: input file name
+    :return: True if the file is in genbank format, False otherwise
+    """
     with open(filename, "r") as handle:
         gbk = SeqIO.parse(handle, "genbank")
         if not any(gbk):
@@ -15,7 +19,13 @@ def is_gbk(filename):
 
     # TODO: SOS Update documentation
 def parse_gb(genbank_file, cotrans_region, reg_region):
-    """ Extracts coding and regulatory regions for genbank files """
+    """ Extracts coding and regulatory regions for genbank files
+
+     :param genbank_file: genbank file name
+     :param cotrans_region: region around the coding region to be extracted
+     :param reg_region: region around the regulatory region to be extracted
+     :return: coding and regulatory regions
+     """
     regulatory_region = []  # region in which TFBSs mostly occur
     coding_region = []  # CDS sequences of genes
     CDS_region = []  # used to store intermediate information
@@ -91,7 +101,14 @@ def parse_gb(genbank_file, cotrans_region, reg_region):
 
 
 def write_fastas(region, region_type, genome_name, outdir):
-    """ Writes fasta files of the four previously identified regions """
+    """ Writes fasta files of the four previously identified regions
+
+     :param region: region to be written to fasta file
+     :param region_type: type of region to be written to fasta file
+     :param genome_name: name of the genome
+     :param outdir: output directory
+     :return: None
+     """
     file_to_write = f"{outdir}/{genome_name}_{region_type}_region.fasta"
     with open(file_to_write, "w") as outfile:
         for i, seq in enumerate(region):

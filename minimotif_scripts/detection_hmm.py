@@ -296,7 +296,6 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                     binding_site_seq = seq_record.seq[
                                    binding_site_loc[0] - 1:
                                    binding_site_loc[1]].reverse_complement()
-                break
 
             elif al_type == "Partial":
                 # TODO: Add condition if the motif-query alignment starts from
@@ -323,7 +322,6 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                                            binding_site_loc[0] - adjust_length - 1:
                                            binding_site_loc[1]].reverse_complement()
 
-                    break
 
                 elif hmm_from != 1 and hmm_to == model_length:
                     binding_site_loc = sorted([int(start_pos), int(end_pos)])
@@ -340,7 +338,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                                      f"-{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from}"
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - 1:
-                                           binding_site_loc[1] + hmm_from].reverse_complement()
+                                           binding_site_loc[1] + hmm_from -1].reverse_complement()
                     break
                 else:
                     binding_site_loc = sorted([int(start_pos), int(end_pos)])
@@ -358,8 +356,8 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                                      f"-{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from}"
 
                         binding_site_seq = seq_record.seq[
-                                           binding_site_loc[0] - adjust_length:
-                                           binding_site_loc[1] + hmm_from].reverse_complement()
+                                           binding_site_loc[0] - adjust_length -1:
+                                           binding_site_loc[1] + hmm_from - 1].reverse_complement()
                     break
 
     return binding_site_seq, gen_loc_bs, len(binding_site_seq)
@@ -387,70 +385,55 @@ def genes_with_bs_finder(processed_output_filenames, gene_orient_dict, product_d
 
     with open(processed_output_filenames) as p_outfile:
         for line in p_outfile:
-            if line.startswith('#') or line.startswith('Processed nhmmscan'):
+            if line.startswith('#') or line.startswith('Processed nhmmscan') or len(line) <= 1:
                 continue
-            elif len(line) == 1:
-                continue  # Avoid irrelevant lines
-            else:
 
-                line = line.strip().split()
-                hmm_from = int(line[4])
-                hmm_to = int(line[5])
-                binding_start = line[6]
-                binding_end = line[7]
-                binding_coord = f"{binding_start}-{binding_end}"
-                model_length = line[10]
-                strand = line[11]
-                nhmmscan_eval = line[12]
-                nhmmscan_score = line[13]
+            line = line.strip().split()
+            hmm_from = int(line[4])
+            hmm_to = int(line[5])
+            binding_start = line[6]
+            binding_end = line[7]
+            binding_coord = f"{binding_start}-{binding_end}"
+            model_length = line[10]
+            strand = line[11]
+            nhmmscan_eval = line[12]
+            nhmmscan_score = line[13]
 
+            # Parse gene name: Either Gene or Gene1-Gene2
+            bs_region = f"{line[2].split('~')[0]}"
+            al_type = "Full" if f"{line[2]}_{line[6]}" in full_len else "Partial"
+            al_length = hmm_to - hmm_from + 1
 
+            bs_seq, gen_bs_loc, len_bs_seq = \
+                binding_site_seq_parser(
+                    fasta_file,
+                    bs_region,
+                    binding_start,
+                    binding_end, strand, al_type,
+                    int(model_length), hmm_from, hmm_to, adjust_length)
 
+            sfbs_list.append((bs_region, gen_bs_loc, strand,
+                          bs_seq, nhmmscan_score,
+                          nhmmscan_eval, len_bs_seq,
+                          al_type, al_length,
+                          model_length))
 
-                if len(line) > 1:
-                    # Parse gene name: Either Gene or Gene1-Gene2
-                    bs_region = f"{line[2].split('~')[0]}"
+    genes_with_bs_file_writer(output_filename, sfbs_list, gene_orient_dict, product_dict)
+    sfbs_list = []
 
-                    if f"{line[2]}_{line[6]}" in full_len:
-                        al_type = "Full"
-                        bs_seq, gen_bs_loc, len_bs_seq = \
-                            binding_site_seq_parser(
-                                fasta_file,
-                                bs_region,
-                                binding_start,
-                                binding_end, strand, al_type,
-                                int(model_length), hmm_from, hmm_to, adjust_length)
+    return None
 
-                    elif f"{line[2]}_{line[6]}" in partial_len:
-                        al_type = 'Partial'
-                        bs_seq, gen_bs_loc, len_bs_seq = \
-                            binding_site_seq_parser(
-                                fasta_file,
-                                bs_region,
-                                binding_start,
-                                binding_end, strand, al_type,
-                                int(model_length), hmm_from, hmm_to, adjust_length)
-
-                    sfbs_list.append((bs_region, gen_bs_loc, strand,
-                                      bs_seq, nhmmscan_score,
-                                      nhmmscan_eval, len_bs_seq,
-                                      al_type, hmm_to,
-                                      model_length))
-
-        genes_with_bs_file_writer(output_filename, sfbs_list, gene_orient_dict, product_dict)
-        sfbs_list = []
-    return
-
-#TODO: Update documentation
 def run_hmm_detection(gbk_file, reg_name, hmm_models, coding, adj_len, outdir, gene_orient_dict, product_dict):
     """ Wrapper function for running the HMM detection
 
+    :param gbk_file: string, name of the gb file
+    :param reg_name: string, name of the regulator
     :param hmm_models: hmm models created by the prep_hmm_detection.py script
     :param coding: True/False, detect for coding regions
     :param adj_len: float, adjust the length of the alignments
     :param outdir: path to the output directory
-    :param gbk_file: string, name of the gb file
-    :param reg_name: string, name of the regulator
+    :param gene_orient_dict: A dict with genes as keys and '+' or '-' as values
+    :param product_dict:  A dict with genes as keys and the annotated gene
 
      """
     gb_name = (gbk_file).split("/")[-1].split(".")[0]

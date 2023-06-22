@@ -64,13 +64,13 @@ parser.add_argument("-pc", "--precal", help=argparse.SUPPRESS,
                     required=False, action='store_true')
 parser.add_argument("-b", "--batch", help=argparse.SUPPRESS,
                     required=False, default=True)
-parser.add_argument("-m", "--mode", help=argparse.SUPPRESS,
+parser.add_argument("-sm", "--spacermode", help=argparse.SUPPRESS, choices=['spacer_masking', 'positional_masking', "no_masking"],
                     required=False, default="spacer_masking")
 parser.add_argument("-ic", "--ic_threshold", type=float,
                     help=argparse.SUPPRESS, required=False, default=1.0)
 parser.add_argument("-la", "--adjust_length", type=float,
                     help=argparse.SUPPRESS, required=False, default=1)
-
+parser.add_argument('-am', '--analysis_mode', help= argparse.SUPPRESS, choices=['auto', 'gapped', 'ungapped', 'both'], default='auto', required=False)
 args = parser.parse_args()
 
 GB_REGIONS = {}
@@ -137,35 +137,54 @@ else:
                     # functions are part of method_selection.py
                     mean_ic = calc_mean_ic(shan_ic)
                     for genbank_file in args.genbank:
-                        if len(shan_ic) >= 10:
-                            if mean_ic < 0.8:  # functions are part of detection_hmm.py
-                                print(f"Running HMM detection for a gapped sequence motif")
-                                hmm_models = prep_hmm_detection(input_file, reg_name, args.mode,
-                                                                args.ic_threshold, args.outdir)
-                                run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                                  args.adjust_length, args.outdir, gene_strand_dict, product_dict)
+                        if args.analysis_mode == 'auto':
+                            # TODO: Maybe also set an upper limit for the number of positions per motif?
+                            if len(shan_ic) >= 10:
+                                if mean_ic < 0.8:  # functions are part of detection_hmm.py
+                                    print(f"Running HMM detection for a gapped sequence motif")
+                                    hmm_models = prep_hmm_detection(input_file, reg_name, args.spacermode,
+                                                                    args.ic_threshold, args.outdir)
+                                    run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
+                                                      args.adjust_length, args.outdir, gene_strand_dict, product_dict)
+                                elif 0.8 <= mean_ic <= 1.2:  # functions are part of both detection_pwm/hmm.py
+                                    print(f"Running both HMM and PWM detection")
+                                    ic_threshold = 1.4
+                                    mode = "positional_masking"
+                                    run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                                      GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
+                                                      args.outdir)
+                                    hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold, args.outdir)
+                                    run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
+                                                      args.adjust_length, args.outdir, gene_strand_dict, product_dict)
 
-                            elif 0.8 <= mean_ic <= 1.2:  # functions are part of both detection_pwm/hmm.py
-                                print(f"Running both HMM and PWM detection")
-                                ic_threshold = 1.4
-                                mode = "positional_masking"
+                                elif mean_ic >= 1.2:  # functions are part of detection_pwm.py
+                                    print(f"Running PWM detection for a ungapped sequence motif")
+                                    run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                                      GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,args.outdir)
+
+                            else:  # run PWM detection for short sequence motifs
+                                print(f"Running PWM detection for a short sequence motif")
                                 run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
                                                   GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
                                                   args.outdir)
-                                hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold, args.outdir)
-                                run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                                  args.adjust_length, args.outdir, gene_strand_dict, product_dict)
+                        elif args.analysis_mode == 'gapped':
+                            print(f"Running HMM detection for a gapped sequence motif")
+                            hmm_models = prep_hmm_detection(input_file, reg_name, args.spacermode, args.ic_threshold, args.outdir)
+                            run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding, args.adjust_length, args.outdir, gene_strand_dict, product_dict)
+                        elif args.analysis_mode == 'ungapped':
+                            print(f"Running PWM detection for a ungapped sequence motif")
+                            run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name, GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch, args.outdir)
+                        elif args.analysis_mode == 'both':
+                            print(f"Running both HMM and PWM detection")
 
-                            elif mean_ic >= 1.2:  # functions are part of detection_pwm.py
-                                print(f"Running PWM detection for a ungapped sequence motif")
-                                run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
-                                                  GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
-                                                  args.outdir)
-                        else:  # run PWM detection for short sequence motifs
-                            print(f"Running PWM detection for a short sequence motif")
+                            ic_threshold = 1.4 # TODO: How is this defined?
+                            mode = "positional_masking"
                             run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
                                               GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
                                               args.outdir)
+                            hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold, args.outdir)
+                            run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
+                                              args.adjust_length, args.outdir, gene_strand_dict, product_dict)
 
         extensions_to_move = [".sto", ".hmm", ".fasta", ".meme", ".moods", "PWM.tsv"]
         movetodir(args.outdir + os.sep, "bin", extensions_to_move)
