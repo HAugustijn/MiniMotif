@@ -9,7 +9,11 @@ from Bio.Seq import Seq
 import numpy as np
 import re
 import pandas as pd
+from rich.console import Console
+from datetime import datetime
 
+
+console = Console()
 
 def align_sequences(input_fasta, reg_name, outdir):
     """Align the sequences in a FASTA file using the MAFFT algorithm.
@@ -26,7 +30,8 @@ def align_sequences(input_fasta, reg_name, outdir):
             subprocess.check_output(cmd_mafft, shell=True, stderr=subprocess.STDOUT)
 
     except Exception as e:
-        raise Exception(f"Failed to align sequences with mafft: {str(e)}")
+        raise Exception(console.print(f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Unable to align "
+                                      f"sequences with mafft: {str(e)}[/bold red]"))
 
 
 def convert_to_stockholm(reg_name, outdir, al_format='stockholm'):
@@ -252,14 +257,14 @@ def run_alimask(msa_file, range_to_mask, outdir):
     alimask_out = f"{outdir}/{filename[0]}_masked.sto"
     cmd_alimask = f"alimask --dna --alirange {range_to_mask}" \
                   f" {outdir}/{msa_file} {alimask_out}"
-    print(cmd_alimask)
 
     try:
         if not os.path.exists(alimask_out):
             subprocess.check_output(cmd_alimask, shell=True, stderr=subprocess.STDOUT)
 
     except Exception as e:
-        raise Exception(f"Failed to run Alimask: {str(e)}")
+        raise Exception(console.print(
+            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Failed to run Alimask: {str(e)}[/bold red]"))
 
     return alimask_out
 
@@ -457,8 +462,10 @@ def run_hmmbuild(ali_out, hmmbuild_out):
     try:
         if not os.path.exists(hmmbuild_out):
             subprocess.check_output(cmd_hmmbuild, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError:
-        print('Unable to run hmmbuild')
+    except Exception as e:
+        raise Exception(console.print(
+            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -Unable to run hmmbuild: {str(e)}[/bold red]"))
+
 
     return hmmbuild_out
 
@@ -581,8 +588,9 @@ def run_hmmpress(hmm_full_file):
     cmd_hmmpres = f"hmmpress -f {hmm_full_file}"
     try:
         subprocess.check_output(cmd_hmmpres, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError:
-        print('Unable to run hmmpress')
+    except Exception as e:
+        raise Exception(console.print(
+            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -Unable to run hmmpress: {str(e)}[/bold red]"))
 
     return hmm_full_file
 

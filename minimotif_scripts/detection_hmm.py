@@ -2,6 +2,11 @@
 import os
 import subprocess
 from Bio import SeqIO
+from rich.console import Console
+from datetime import datetime
+
+
+console = Console()
 
 
 def nhmmscan_wrapper(fasta_file, reg_name, gb_name, reg_type, hmm_db_file, outdir):
@@ -38,7 +43,8 @@ def run_nhmmscan(hmm_full_file, query_seq_db, tabular_outfile,
             subprocess.check_output(cmd_nhmmscan, shell=True, stderr=subprocess.STDOUT)
 
     except subprocess.CalledProcessError:
-        print('Unable to run nhmmscan')
+        console.print(
+            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Unable to run nhmmscan[/bold red]")
 
     return tabular_outfile
 
@@ -285,7 +291,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
 
             if al_type == "Full":
 
-                gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0]}"\
+                gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] -1}"\
                              f"-{int(seq_rec_start_loc) + binding_site_loc[1]}"
 
                 if strand == "+":
@@ -298,7 +304,6 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                                    binding_site_loc[1]].reverse_complement()
 
             elif al_type == "Partial":
-                # TODO: Add condition if the motif-query alignment starts from
                 # the first position of the motif, do what is expected. Also,
                 # instead of using the motif length to pinpoint the coordinates,
                 # use the adjust_length + the greatest position of the binding
@@ -308,14 +313,14 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                     #  gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0]}"\
                     # f"-{int(seq_rec_start_loc)+ binding_site_loc[1] + adjust_length}"
                     if strand == "+":
-                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0]}" \
+                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - 1}" \
                                      f"-{int(seq_rec_start_loc) + binding_site_loc[1] + adjust_length}"
 
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - 1: binding_site_loc[
                                                                         1] + adjust_length]
                     elif strand == "-":
-                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - adjust_length} " \
+                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - adjust_length -1} " \
                                      f"-{int(seq_rec_start_loc) + binding_site_loc[1]}"
 
                         binding_site_seq = seq_record.seq[
@@ -326,7 +331,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                 elif hmm_from != 1 and hmm_to == model_length:
                     binding_site_loc = sorted([int(start_pos), int(end_pos)])
                     if strand == "+":
-                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - hmm_from}" \
+                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - hmm_from }" \
                                      f"-{int(seq_rec_start_loc) + binding_site_loc[1]}"
 
                         binding_site_seq = seq_record.seq[
@@ -334,8 +339,8 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                                                1]]
 
                     elif strand == "-":
-                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0]}" \
-                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from}"
+                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] -1}" \
+                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from -1}"
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - 1:
                                            binding_site_loc[1] + hmm_from -1].reverse_complement()
@@ -343,7 +348,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                 else:
                     binding_site_loc = sorted([int(start_pos), int(end_pos)])
                     if strand == "+":
-                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - hmm_from}" \
+                        gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - hmm_from }" \
                                      f"-{int(seq_rec_start_loc) + binding_site_loc[1] + adjust_length}"
 
                         binding_site_seq = seq_record.seq[
@@ -353,7 +358,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                     elif strand == "-":
 
                         gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - adjust_length - 1}" \
-                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from}"
+                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from - 1}"
 
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - adjust_length -1:

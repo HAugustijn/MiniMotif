@@ -1,7 +1,10 @@
 """  """
 
 from Bio import SeqIO
+from rich.console import Console
+from datetime import datetime
 
+console = Console()
 
 def is_gbk(filename):
     """ Determines if the input file is in genbank format
@@ -12,12 +15,14 @@ def is_gbk(filename):
     with open(filename, "r") as handle:
         gbk = SeqIO.parse(handle, "genbank")
         if not any(gbk):
-            print(f'Please provide the genome input (-G) in GenBank format for file: {filename}')
+            console.print(
+                f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Please provide the genome input (-G)"
+                f" in GenBank format for file: {filename}[/bold red]")
             return False
         else:
             return True
 
-    # TODO: SOS Update documentation
+
 def parse_gb(genbank_file, cotrans_region, reg_region):
     """ Extracts coding and regulatory regions for genbank files
 
@@ -49,7 +54,9 @@ def parse_gb(genbank_file, cotrans_region, reg_region):
                         if type(gene_name) == list:
                             gene_name = gene_name[0]
                     else:
-                        print(f"Couldn't identify the CDS locus tag in the following qualifiers: {f.qualifiers}")
+                        console.print(
+                            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Couldn't identify the CDS"
+                            f" locus tag in the following qualifiers: {f.qualifiers}[/bold red]")
                     if "product" not in f.qualifiers.keys():
                         f.qualifiers["product"] = "N/A"
                         no_product_genes_list.append(gene_name)
