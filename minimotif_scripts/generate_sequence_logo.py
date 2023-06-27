@@ -8,7 +8,11 @@ import logomaker
 
 
 def create_pfm(motifs):
-    """ constructs a position frequency matrix from a list of binding sites """
+    """ constructs a position frequency matrix from a list of binding sites
+
+     :param motifs: list of binding sites
+     :returns: pfm_dict: position frequency matrix as dictionary
+     """
     pfm_dict = {"A": [], "C": [], "G": [], "T": []}
 
     for j in range(len(motifs[0])):
@@ -20,7 +24,11 @@ def create_pfm(motifs):
 
 
 def get_ic(pfm):
-    """ Create information content profiles for Shannon entropy """
+    """ Create information content profiles for Shannon entropy
+
+     :param pfm: position frequency matrix as dictionary
+     :returns: shan_ent: information content profiles for Shannon entropy as dataframe
+     """
     shan_ent = {"A": [], "C": [], "G": [], "T": []}
 
     df = pd.DataFrame.from_dict(pfm)
@@ -43,7 +51,13 @@ def get_ic(pfm):
 
 
 def create_logo(ic, reg_name, out_dir):
-    """ Creates sequence logo in pdf format """
+    """ Creates sequence logo in pdf format
+
+     :param ic: information content profiles for Shannon entropy
+     :param reg_name: name of the transcription regulator
+     :param out_dir: output directory
+     :returns: None
+     """
     pdf_file = os.path.join(out_dir, f"{reg_name}_logo.pdf")
     if not os.path.exists(pdf_file):
         plt.figure(figsize=(90, 40))

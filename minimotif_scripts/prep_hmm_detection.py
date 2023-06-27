@@ -9,22 +9,44 @@ from Bio.Seq import Seq
 import numpy as np
 import re
 import pandas as pd
+from rich.console import Console
+from datetime import datetime
 
-#TODO: Is this function meant to align the fasta sequences? If so, it should be called align_sequences. Otherwise, AlignIO.convert can do the same.
-def convert_to_fasta(input_fasta, reg_name, outdir):
-    """ convert the fasta file to a equal length fasta file """
+
+console = Console()
+
+def align_sequences(input_fasta, reg_name, outdir):
+    """Align the sequences in a FASTA file using the MAFFT algorithm.
+
+    input_fasta: str, the path to the input FASTA file
+    reg_name: str, the name of the regulator
+    outdir: str, the directory path to save the output files
+    """
+
     outfile = f"{outdir}/{reg_name}.fasta"
     cmd_mafft = f"mafft --auto {input_fasta} > {outfile}"
     try:
         if not os.path.exists(outfile):
             subprocess.check_output(cmd_mafft, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError:
-        print('Unable to run mafft')
+
+    except Exception as e:
+        raise Exception(console.print(f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Unable to align "
+                                      f"sequences with mafft: {str(e)}[/bold red]"))
 
 
-def extract_msa(reg_name, outdir, al_format='stockholm'):
-    """ Converts a given fasta file to a AlignIO.MSA alignment and .sto file """
+def convert_to_stockholm(reg_name, outdir, al_format='stockholm'):
+    """Converts a given FASTA file to a Stockholm format alignment file and returns the parsed MSA object.
+
+    reg_name: str, the name of the regulator
+    outdir: str, the directory path to save the output files
+    al_format: str, the format of the alignment file (default: 'stockholm')
+
+    Returns:
+    - An AlignIO.MSA object representing the alignment.
+    """
+
     AlignIO.convert(f'{outdir}/{reg_name}.fasta', 'fasta', f'{outdir}/{reg_name}.sto', 'stockholm')
+
     return AlignIO.read(f'{outdir}/{reg_name}.sto', al_format)
 
 
@@ -239,10 +261,11 @@ def run_alimask(msa_file, range_to_mask, outdir):
     try:
         if not os.path.exists(alimask_out):
             subprocess.check_output(cmd_alimask, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError:
-        print('Unable to run alimask')
-        # TODO: Try running with different information content does not make much sense for me
-        print('try running with a different information content')
+
+    except Exception as e:
+        raise Exception(console.print(
+            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Failed to run Alimask: {str(e)}[/bold red]"))
+
     return alimask_out
 
 
@@ -350,75 +373,40 @@ def positions_with_high_information_content(shannon_entropy_list, spacer_en_thre
     return high_information_content_index_list
 
 
-def spacer_masker(sequences_list, alignment_filenames, mode, outdir,
-                  information_content=1):
-    """Detects the new artificial spacers and masks them with alimask
+def spacer_masker(sequences_list, alignment_filenames, mode, outdir, information_content=1):
+    """Masks the spacer region of an MSA.
 
-    :param sequences_list: List of MSA objects
-    :param outdir: output directory
-    :param alignment_filenames: List of alignment filenames
-    :param mode: 'spacer_masking'(Default) or 'positional_masking'.
-    :param information_content: Float, information content threshold, above it
-    every position is considered a high information content position
-    :return: masked_seq_filenames, List of filenames of masked MSAs
+    :param sequences_list: List of strings, each string is a sequence
+    :param alignment_filenames: List of strings, each string is a filename
+    :param mode: String, either "spacer_masking", "positional_masking" or "no_masking"
+    :param outdir: String, path to output directory
+    :param information_content: Float, information content threshold
+    :return: masked_seq_filenames: Set of strings, each string is a filename
     """
-    spacers_list = []
-    masked_seq_filenames = []
-    single_pos_list = []
-    pos_masked_list = []
+    masked_seq_filenames = set()
+    full_masked_string = ""
+    range_to_mask = ""
 
     # Find the positions with high information content in the alignment
-    for seq in sequences_list:
+    for index, seq in enumerate(sequences_list):
         msa_s_information_content = shannon_entropy_msa(seq)
-        spacer_high_ent_pos = positions_with_high_information_content(
-            msa_s_information_content, information_content)
+        spacer_high_ent_pos = positions_with_high_information_content(msa_s_information_content, information_content)
+        spacer_pos = spacer_tracker(seq, spacer_high_ent_pos)
         if mode == "spacer_masking":
-            # find smaller and largest index with high information content,
-            # mask everything in between them
-            spacer_pos = spacer_tracker(seq, spacer_high_ent_pos)
-            spacers_list.append(spacer_pos)
-            single_pos_list.append([])
-        else:
-            # Mode: positional_masking, mask every position that is over
-            # the threshold individually.
-            spacer_pos = spacer_tracker(seq, spacer_high_ent_pos)
-            single_pos_list.append(spacer_pos)
-            spacers_list.append([])
-
-    # Use the spacers list and the alignment filenames
-    # to run alimask for every alignment file
-    for index in range(len(alignment_filenames)):
-
-        if not spacers_list[index] and not single_pos_list[index] or mode == \
-                "no_masking":
-            # Nothing to be masked: Alignment passes to the next step as it is
-            masked_seq_filenames.append(f"{outdir}/{alignment_filenames[index]}")
-        elif spacers_list[index] and not single_pos_list[index]:
-            # mode: 'spacer_masking'
-            # Define the range to be masked based on the spacer list
-            spacer_start = min(spacers_list[index]) + 1
-            spacer_end = max(spacers_list[index]) + 1
-            range_to_mask = f"{spacer_start}-{spacer_end}"
-
-            # Mask & store masked filename
+            # find smaller and largest index with high information content, mask everything in between them
+            range_to_mask = f"{min(spacer_pos) + 1}-{max(spacer_pos) + 1}"
             masked_seq = run_alimask(alignment_filenames[index], range_to_mask, outdir)
-            masked_seq_filenames.append(masked_seq)
-
-        elif single_pos_list[index] and not spacers_list[index]:
-            # mode: 'positional_masking'
-            # Define single positions to be masked
-            for pos in single_pos_list[index]:
-                pos_mask = pos + 1
-                pos_mask_string = f"{pos_mask}-{pos_mask}"
-                pos_masked_list.append(pos_mask_string)
-            full_masked_string = ",".join(pos_masked_list)
-
-            # Mask & store masked filename
+            masked_seq_filenames.add(masked_seq)
+        elif mode == "positional_masking":
+            # Mode: positional_masking, mask every position that is over the threshold individually.
+            full_masked_string = ",".join(f"{pos + 1}-{pos + 1}" for pos in spacer_pos)
             masked_seq = run_alimask(alignment_filenames[index], full_masked_string, outdir)
-            masked_seq_filenames.append(masked_seq)
-            pos_masked_list = []
+            masked_seq_filenames.add(masked_seq)
+        elif not spacer_pos or mode == "no_masking":
+            # Nothing to be masked: Alignment passes to the next step as it is
+            masked_seq_filenames.add(f"{outdir}/{alignment_filenames[index]}")
 
-    return masked_seq_filenames
+    return list(masked_seq_filenames)
 
 
 def masked_seq_name_editor(masked_seq_filenames):
@@ -474,8 +462,10 @@ def run_hmmbuild(ali_out, hmmbuild_out):
     try:
         if not os.path.exists(hmmbuild_out):
             subprocess.check_output(cmd_hmmbuild, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError:
-        print('Unable to run hmmbuild')
+    except Exception as e:
+        raise Exception(console.print(
+            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -Unable to run hmmbuild: {str(e)}[/bold red]"))
+
 
     return hmmbuild_out
 
@@ -598,16 +588,26 @@ def run_hmmpress(hmm_full_file):
     cmd_hmmpres = f"hmmpress -f {hmm_full_file}"
     try:
         subprocess.check_output(cmd_hmmpres, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError:
-        print('Unable to run hmmpress')
+    except Exception as e:
+        raise Exception(console.print(
+            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -Unable to run hmmpress: {str(e)}[/bold red]"))
 
     return hmm_full_file
 
 
 def prep_hmm_detection(reg_fasta, reg_name, mask_mode, ic_thres, outdir):
-    """  """
-    convert_to_fasta(reg_fasta, reg_name, outdir)  # to handle unequal input sequence lengths
-    alignment = extract_msa(reg_name, outdir)
+    """Prepares the input files for the hmm detection step
+
+    :param reg_fasta: fasta file with the regulator sequence
+    :param reg_name: name of the regulator
+    :param mask_mode: mode of masking
+    :param ic_thres: information content threshold
+    :param outdir: output directory
+
+    :return: Pressed pHMM database file
+      """
+    align_sequences(reg_fasta, reg_name, outdir)  # to handle unequal input sequence lengths
+    alignment = convert_to_stockholm(reg_name, outdir)
     gap_freq_list = calculate_gap_freq(alignment)
     gap_summary = gap_checker(gap_freq_list)
     # Find position with max information content and no gap characters

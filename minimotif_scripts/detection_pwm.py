@@ -5,7 +5,11 @@ import seqlogo
 from collections import Counter
 import os
 import subprocess
+from rich.console import Console
+from datetime import datetime
 
+
+console = Console()
 
 def create_pwm(pfm, pscount, outdir, reg_name):
     """ creates a position wight matrix of a position frequency matrix
@@ -72,7 +76,8 @@ def run_moods(fasta_file, pwm, reg_type, reg_name, outdir, bg_dist,
             res_map = subprocess.check_output(cmd_moods, shell=True,
                                               stderr=subprocess.STDOUT)
     except(subprocess.CalledProcessError):
-        print(f'Unable to run moods with command: {cmd_moods}')
+        console.print(
+            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Unable to run moods with command: {cmd_moods}[/bold red]")
     return outfile
 
 
