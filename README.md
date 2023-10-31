@@ -1,4 +1,4 @@
-# MiniMotif
+# MiniMotif (beta version)
 
 ## Introduction
 
@@ -6,10 +6,17 @@ Minimotif detects transcription factor binding sites in a given genome, by combi
 
 ## Instalation
 
-MiniMotif is available as a conda package and can be installed with the following command:
+MiniMotif downloaded with the following command:
 
 ```
-conda install -c bioconda MiniMotif
+git clone https://github.com/HAugustijn/MiniMotif.git
+```
+
+Then install all the dependencies from the minimotif.yml file with:
+
+```
+conda env create -f minimotif.yml minimotif
+conda activate minimotif
 ```
 
 ## Quick usage 
