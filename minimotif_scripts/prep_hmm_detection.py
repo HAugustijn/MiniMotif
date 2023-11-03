@@ -442,7 +442,7 @@ def msa_file_merger(masked_seq_filenames, reg_name, outdir):
     full_msa_filename = f"{outdir}/{reg_name}_msa_db.sto"
     with open(full_msa_filename, 'w') as msa_db_file:
         for file in masked_seq_filenames:
-            with open(file) as masked_msa_file:
+            with open(file, "r") as masked_msa_file:
                 msa_db_file.write(masked_msa_file.read())
             msa_db_file.write('\n\n')
 
@@ -631,7 +631,7 @@ def prep_hmm_detection(reg_fasta, reg_name, mask_mode, ic_thres, outdir):
     hmm_models = model_creator(msa_db_filename, reg_name, outdir)
     sequence_with_n, short_sequence, length = parse_hmm(hmm_models)
     # combine the parsed data into output that can be used for the database
-    create_hmm_database_output(sequence_with_n, short_sequence, length, reg_name)
+    db_output = create_hmm_database_output(sequence_with_n, short_sequence, length, reg_name)
     run_hmmpress(hmm_models)
 
     return hmm_models

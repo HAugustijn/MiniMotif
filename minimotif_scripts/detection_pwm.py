@@ -96,10 +96,23 @@ def parse_moods(moods_results, reg_name, gb_name, reg_type, thres, outdir):
             ID, PWM_name, loc, strand, score, seq, no = line.split(",")
             region = ID.split("~")[0]
             start_loc = ID.split("~")[1].split(":")[0]
+            stop_loc = ID.split("~")[1].split(":")[1]
             full_start_loc = int(start_loc) + int(loc)
             full_end_loc = int(start_loc) + int(loc) + int(len(seq))
             full_loc = f"{full_start_loc}:{full_end_loc}"
             conf = set_confidence(float(score), thres)
+            
+            if "-" in region:
+                if not len(region.split('-')) > 2:
+                    first_gene, second_gene = region.split('-')
+                    range_region = ((int(stop_loc) - int(start_loc))/2) + int(start_loc)
+                    if full_start_loc <= range_region:
+                        region = first_gene
+                    else:
+                        region = second_gene
+            else:
+                region = region
+
             if region not in out_dict.keys():
                 out_dict[region] = []
                 out_dict[region].append([full_loc, strand, score, conf, seq])

@@ -25,7 +25,7 @@ def is_fasta(filename):
 def run_meme(fasta_file, outdir, min_width):
     """ Run MEME to identify motifs in binding sequences """
     reg_name = fasta_file.split("/")[-1].split(".")[0]
-    out_file = os.path.join(outdir + reg_name + ".meme")
+    out_file = f"{outdir}/{reg_name}.meme"
     cmd_meme = f"meme {fasta_file} -o {outdir} -text -dna -minw " \
                f"{min_width} -nmotifs 3 -evt 0.05 -revcomp > {out_file}"
     try:

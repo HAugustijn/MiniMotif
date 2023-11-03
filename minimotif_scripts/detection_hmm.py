@@ -182,7 +182,7 @@ def nhmmscan_out_parser(nhmmscan_tab, motif_length_list, adjust_length,
     return outfile, full_len_real_hits, partial_len_real_hits
 
 
-def genes_with_bs_file_writer(output_filename, sfbs_list, gene_strand_dict, product_dict):
+def genes_with_bs_file_writer(output_filename, sfbs_list, full_len, gene_strand_dict, product_dict):
     """Writes a summary  file of gene targets for the Sigma factor
 
     :param output_filename: Name of the output file
@@ -236,20 +236,30 @@ def genes_with_bs_file_writer(output_filename, sfbs_list, gene_strand_dict, prod
                                      f"\t{','.join(regulated_gene_list)}\t{product_string}"
 
             else:
-                gene1 = bs_summary[0].split("-")[0]
-                gene_orient = gene_strand_dict[gene1]
-                gene_product = product_dict[gene1]
+                full_start_loc, full_stop_loc = bs_summary[1].split(":")
+                start_loc, stop_loc = full_len.split(":")
+                range_region = ((int(stop_loc) - int(start_loc)) / 2) + int(start_loc)
+                if len(bs_summary[0].split("-")) == 1:
+                    region = bs_summary[0].split("-")[0]
+                else:
+                    first_gene, second_gene = bs_summary[0].split("-")
+                    if int(full_start_loc) <= range_region:
+                        region = first_gene
+                    else:
+                        region = second_gene
+                gene_orient = gene_strand_dict[region]
+                gene_product = product_dict[region]
 
                 if bs_summary[2] == "-" and gene_orient == "-":
                     regulated_gene_list.append(bs_summary[0])
-                    gene_product_string = f"{gene1}:{gene_product[0]}"
+                    gene_product_string = f"{region}:{gene_product[0]}"
                 elif bs_summary[2] == "+" and gene_orient == "+":
                     regulated_gene_list.append(bs_summary[0])
-                    gene_product_string = f"{gene1}:{gene_product[0]}"
+                    gene_product_string = f"{region}:{gene_product[0]}"
                 else:
                     regulated_gene_list.append(["N/A"])
                     gene_product_string = "N/A"
-                gene_strand_string = f"{gene1}\t{bs_summary[1]}\t{bs_summary[3]}\t{bs_summary[6]}" \
+                gene_strand_string = f"{region}\t{bs_summary[1]}\t{bs_summary[3]}\t{bs_summary[6]}" \
                                      f"\t{bs_summary[8]}\t{bs_summary[9]}\t{bs_summary[7]}\t{bs_summary[5]}" \
                                      f"\t{bs_summary[4]}\t{bs_summary[2]}\t{gene_orient}\t{regulated_gene_list[0][0]}" \
                                      f"\t{gene_product_string}"
@@ -292,7 +302,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
             if al_type == "Full":
 
                 gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] -1}"\
-                             f"-{int(seq_rec_start_loc) + binding_site_loc[1]}"
+                             f":{int(seq_rec_start_loc) + binding_site_loc[1]}"
 
                 if strand == "+":
                     binding_site_seq = seq_record.seq[
@@ -314,14 +324,14 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                     # f"-{int(seq_rec_start_loc)+ binding_site_loc[1] + adjust_length}"
                     if strand == "+":
                         gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - 1}" \
-                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1] + adjust_length}"
+                                     f":{int(seq_rec_start_loc) + binding_site_loc[1] + adjust_length}"
 
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - 1: binding_site_loc[
                                                                         1] + adjust_length]
                     elif strand == "-":
                         gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - adjust_length -1} " \
-                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1]}"
+                                     f":{int(seq_rec_start_loc) + binding_site_loc[1]}"
 
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - adjust_length - 1:
@@ -332,7 +342,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                     binding_site_loc = sorted([int(start_pos), int(end_pos)])
                     if strand == "+":
                         gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - hmm_from }" \
-                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1]}"
+                                     f":{int(seq_rec_start_loc) + binding_site_loc[1]}"
 
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - hmm_from: binding_site_loc[
@@ -340,7 +350,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
 
                     elif strand == "-":
                         gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] -1}" \
-                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from -1}"
+                                     f":{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from -1}"
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - 1:
                                            binding_site_loc[1] + hmm_from -1].reverse_complement()
@@ -349,7 +359,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                     binding_site_loc = sorted([int(start_pos), int(end_pos)])
                     if strand == "+":
                         gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - hmm_from }" \
-                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1] + adjust_length}"
+                                     f":{int(seq_rec_start_loc) + binding_site_loc[1] + adjust_length}"
 
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - hmm_from:
@@ -358,7 +368,7 @@ def binding_site_seq_parser(fasta_file, gene_name, start_pos, end_pos, strand,
                     elif strand == "-":
 
                         gen_loc_bs = f"{int(seq_rec_start_loc) + binding_site_loc[0] - adjust_length - 1}" \
-                                     f"-{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from - 1}"
+                                     f":{int(seq_rec_start_loc) + binding_site_loc[1] + hmm_from - 1}"
 
                         binding_site_seq = seq_record.seq[
                                            binding_site_loc[0] - adjust_length -1:
@@ -387,6 +397,7 @@ def genes_with_bs_finder(processed_output_filenames, gene_orient_dict, product_d
     """
     sfbs_list = []
     output_filename = f"{outdir}/{reg_name}_{gb_name}_{reg_type}_hmm_results.tsv"
+    full_len2 = ""
 
     with open(processed_output_filenames) as p_outfile:
         for line in p_outfile:
@@ -406,6 +417,7 @@ def genes_with_bs_finder(processed_output_filenames, gene_orient_dict, product_d
 
             # Parse gene name: Either Gene or Gene1-Gene2
             bs_region = f"{line[2].split('~')[0]}"
+            full_len2 = f"{line[2].split('~')[1]}"
             al_type = "Full" if f"{line[2]}_{line[6]}" in full_len else "Partial"
             al_length = hmm_to - hmm_from + 1
 
@@ -423,7 +435,7 @@ def genes_with_bs_finder(processed_output_filenames, gene_orient_dict, product_d
                           al_type, al_length,
                           model_length))
 
-    genes_with_bs_file_writer(output_filename, sfbs_list, gene_orient_dict, product_dict)
+    genes_with_bs_file_writer(output_filename, sfbs_list, full_len2, gene_orient_dict, product_dict)
     sfbs_list = []
 
     return None

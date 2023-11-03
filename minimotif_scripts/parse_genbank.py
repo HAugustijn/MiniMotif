@@ -32,6 +32,7 @@ def parse_gb(genbank_file, cotrans_region, reg_region):
      :return: coding and regulatory regions
      """
     regulatory_region = []  # region in which TFBSs mostly occur
+    upstream_region = []  # complete regions between genes
     coding_region = []  # CDS sequences of genes
     CDS_region = []  # used to store intermediate information
     counter = 0
@@ -78,10 +79,16 @@ def parse_gb(genbank_file, cotrans_region, reg_region):
                     seq_region = f"{start}:{end}"
                     counter += 1
                     coding_region.append([gene_name, seq_region, f.strand, intergene_seq])
-                    if counter == 1 and start >= cotrans_region[1]:
+
+                    if counter == 1 and start >= int(cotrans_region[1]):
                         intergene_seq = rec.seq[start + reg_region[0]:start + reg_region[1]]
                         seq_region = f"{start + reg_region[0]}:{start + reg_region[1]}"
                         regulatory_region.append([gene_name, seq_region, f.strand, intergene_seq])
+
+                        intergene_seq = rec.seq[0:start+20]
+                        seq_region = f"0:{start+20}"
+                        upstream_region.append([gene_name, seq_region, f.strand, intergene_seq])
+
             # Based on the location of the CDS genes, identify regulatory regions
             for i, pos in enumerate(CDS_region[1:]):
                 # Compare current start position to previous end position
@@ -89,22 +96,40 @@ def parse_gb(genbank_file, cotrans_region, reg_region):
                 this_start = pos[1]
                 gene_region_name = '-'.join([CDS_region[i][0], pos[0]])
                 strand_pos = [CDS_region[i][3], pos[3]]
-                if this_start - last_end >= cotrans_region[1] and strand_pos != [1, -1]:
-                    # Remove regions which are likely co-transcribed and exclude terminator regions
-                    intergene_seq = rec.seq[(this_start) + reg_region[0]:(this_start) + reg_region[1]]
-                    seq_region = f"{this_start + reg_region[0]}:{this_start + reg_region[1]}"
-                    regulatory_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
-                elif 1 < this_start - last_end < cotrans_region[1] and strand_pos == [-1, 1]:
+                if this_start - last_end >= int(cotrans_region[1]) and strand_pos != [1, -1]:
+                    if abs(reg_region[0]) >= (this_start - last_end):
+                        intergene_seq = rec.seq[last_end - reg_region[1]:this_start + reg_region[1]]
+                        seq_region = f"{last_end - reg_region[1]}:{this_start + reg_region[1]}"
+                        regulatory_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
+                    else:
+                        intergene_seq = rec.seq[this_start + reg_region[0]:this_start + reg_region[1]]
+                        seq_region = f"{this_start + reg_region[0]}:{this_start + reg_region[1]}"
+                        regulatory_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
+
+                    intergene_seq = rec.seq[last_end-20:this_start+20]
+                    seq_region = f"{last_end -19 }:{this_start +20}"
+                    upstream_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
+
+                elif 1 < this_start - last_end < int(cotrans_region[1]) and strand_pos == [-1, 1]:
                     # Include shorter regions between two start codons
-                    intergene_seq = rec.seq[(last_end):(this_start)]
-                    seq_region = f"{last_end}:{this_start}"
+                    intergene_seq = rec.seq[last_end-20:this_start + 20]
+                    seq_region = f"{last_end - 20 }:{this_start + 20}"
                     regulatory_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
+
+                    intergene_seq = rec.seq[(last_end - 20):(this_start + 20)]
+                    seq_region = f"{last_end - 20}:{this_start + 20}"
+                    upstream_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
+
             if CDS_region[-1][3] == 1:  # Add the region after the last CDS
                 intergene_seq = rec.seq[(CDS_region[-1][2]) + reg_region[0]:genome_length]
                 seq_region = f"{CDS_region[-1][2] + reg_region[0]}:{genome_length}"
                 regulatory_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
 
-    return regulatory_region, coding_region, complete_seq, gene_strand_dict, product_dict
+                intergene_seq = rec.seq[(CDS_region[-1][2]) - 20:genome_length]
+                seq_region = f"{CDS_region[-1][2] -19 }:{genome_length}"
+                upstream_region.append([gene_region_name, seq_region, strand_pos, intergene_seq])
+
+    return regulatory_region, coding_region, upstream_region, complete_seq, gene_strand_dict, product_dict
 
 
 def write_fastas(region, region_type, genome_name, outdir):

@@ -59,6 +59,7 @@ def create_logo(ic, reg_name, out_dir):
      :returns: None
      """
     pdf_file = os.path.join(out_dir, f"{reg_name}_logo.pdf")
+    png_file = os.path.join(out_dir, f"{reg_name}_logo.png")
     if not os.path.exists(pdf_file):
         plt.figure(figsize=(90, 40))
 
@@ -74,4 +75,5 @@ def create_logo(ic, reg_name, out_dir):
         logo.ax.set_ylim([0, 2])
 
         plt.savefig(pdf_file, format="pdf")
+        plt.savefig(png_file, format="png")
     return
