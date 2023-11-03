@@ -102,7 +102,7 @@ for genbank_file in args.genbank:
 
 if args.precal:  # Run detection on precalculated PWMs
     base = os.path.dirname(os.path.abspath(__file__))
-    path_pwm = os.path.join(base, 'data/pwms.json')
+    path_pwm = os.path.join(base, 'bin/data/pwms.json')
     with open(path_pwm, "r", encoding="utf-8") as file:
         regulators = jsonlib.load(file)
     for reg in regulators.keys():
