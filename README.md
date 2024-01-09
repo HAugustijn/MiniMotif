@@ -4,7 +4,7 @@
 
 Minimotif is a tool that detects transcription factor binding sites in a given genome. 
 
-Minimotif detects transcription factor binding sites (TFBS) in a given genome, by combining the power of Position Weight Matrices (PWMs) and profile Hidden Markov Models (pHMMs). If the binding site of interest is gapless, then a Position Weight Matrix (PWM) is created and the tool MOODS is used to find any occurrences of the motif within the genome. Alternatively, if the binding site contain gaps (i.e sigma factor binding sites with variable spacer length), then MiniMotif constructs profile Hidden Markov Models (pHMMs) and interrogates the genome with the nhmmscan flavor of HMMER. In addition, it allows scanning a genome with a premade set of TFBSs. 
+Minimotif detects transcription factor binding sites (TFBS) in a given genome, by combining the power of Position Weight Matrices (PWMs) and profile Hidden Markov Models (pHMMs). If the binding site of interest is gapless, then a Position Weight Matrix (PWM) is created and the tool MOODS is used to find any occurrences of the motif within the genome. Alternatively, if the binding site contains gaps (i.e. sigma factor binding sites with variable spacer length), then MiniMotif constructs profile Hidden Markov Models (pHMMs) and interrogates the genome with the nhmmscan flavor of HMMER. In addition, it allows the scanning of a genome with a premade set of TFBSs. 
 
 ## Requirements
 
@@ -14,7 +14,7 @@ The following instructions require the installation of the following on your mac
 
 
 
-## Instalation
+## Installation
 
 Download MiniMotif with the following command:
 
@@ -23,7 +23,7 @@ git clone https://github.com/HAugustijn/MiniMotif.git
 ```
 Note: Requires installation of git.
 
-Then install all the dependencies from the minimotif.yml file with:
+Then install all the dependencies from the minimotif.yml file with the following:
 
 ```
 cd MiniMotif
@@ -32,7 +32,7 @@ conda activate MiniMotif
 ```
 Note: Requires installation of conda.
 
-Note 2: Remember to activate the MiniMotif environment everytime you use MiniMotif!
+Note 2: Remember to activate the MiniMotif environment every time you use MiniMotif!
 
 ## Quick usage 
 
@@ -41,7 +41,7 @@ Generally, MiniMotif can be used with the following command:
 ```
 python3 minimotif.py [optional arguments] -G [genome_file] -O [output_directory]
 ```
-Please read the following paragraphs for further information.
+Please read the paragraphs included below for more information.
 
 ### 1) Query a genome with precalculated PWMs
 
@@ -84,7 +84,7 @@ If the user knows that the motif is gapped, ungapped or wants both the PWM and p
 ```
 python3 minimotif.py -i test.fasta -am gapped -G [genome_file] -O [output_directory]
 ```
-Notes: -am can be set to "ungapped" (PWMs), "gapped" (pHMMs), "both" (PWMs and pHMMs) and "auto"( Default)
+Notes: -am can be set to "ungapped" (PWMs), "gapped" (pHMMs), "both" (PWMs and pHMMs), and "auto"( Default)
 
 Here's a full description of all the optional arguments:
 
