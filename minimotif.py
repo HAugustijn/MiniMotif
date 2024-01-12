@@ -125,6 +125,9 @@ if args.precal:  # Run detection on precalculated PWMs
                                       gb_name, args.pvalue, args.batch)
             parse_moods(moods_results, reg, gb_name, "reg", thresholds_pwm, args.outdir)
 
+    extensions_to_move = [".sto", ".hmm", ".fasta", ".meme", ".moods", "PWM.tsv"]
+    movetodir(args.outdir + os.sep, "bin", extensions_to_move)
+
 else:
     if args.input:
         for input_file in args.input:
