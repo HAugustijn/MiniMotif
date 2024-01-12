@@ -11,6 +11,8 @@ import re
 import pandas as pd
 from rich.console import Console
 from datetime import datetime
+from minimotif_scripts.logger import logger
+
 
 
 console = Console()
@@ -30,7 +32,7 @@ def align_sequences(input_fasta, reg_name, outdir):
             subprocess.check_output(cmd_mafft, shell=True, stderr=subprocess.STDOUT)
 
     except Exception as e:
-        raise Exception(console.print(f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Unable to align "
+        raise Exception(logger.log(f"[bold red]Unable to align "
                                       f"sequences with mafft: {str(e)}[/bold red]"))
 
 
@@ -264,8 +266,8 @@ def run_alimask(msa_file, range_to_mask, outdir):
             subprocess.check_output(cmd_alimask, shell=True, stderr=subprocess.STDOUT)
 
     except Exception as e:
-        raise Exception(console.print(
-            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Failed to run Alimask: {str(e)}[/bold red]"))
+        raise Exception(logger.log(
+            f"[bold red]Failed to run Alimask: {str(e)}[/bold red]"))
 
     return alimask_out
 
@@ -464,8 +466,8 @@ def run_hmmbuild(ali_out, hmmbuild_out):
         if not os.path.exists(hmmbuild_out):
             subprocess.check_output(cmd_hmmbuild, shell=True, stderr=subprocess.STDOUT)
     except Exception as e:
-        raise Exception(console.print(
-            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -Unable to run hmmbuild: {str(e)}[/bold red]"))
+        raise Exception(logger.log(
+            f"[bold red]Unable to run hmmbuild: {str(e)}[/bold red]"))
 
 
     return hmmbuild_out
@@ -590,8 +592,8 @@ def run_hmmpress(hmm_full_file):
     try:
         subprocess.check_output(cmd_hmmpres, shell=True, stderr=subprocess.STDOUT)
     except Exception as e:
-        raise Exception(console.print(
-            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} -Unable to run hmmpress: {str(e)}[/bold red]"))
+        raise Exception(logger.log(
+            f"[bold red]Unable to run hmmpress: {str(e)}[/bold red]"))
 
     return hmm_full_file
 
