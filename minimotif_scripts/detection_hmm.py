@@ -5,7 +5,7 @@ from Bio import SeqIO
 from rich.console import Console
 from datetime import datetime
 
-
+from minimotif_scripts.logger import logger
 console = Console()
 
 
@@ -36,15 +36,15 @@ def run_nhmmscan(hmm_full_file, query_seq_db, tabular_outfile,
     :param regular_outfile: Output in regular HMMEr format file
     :return: tabular_outfile: Output in tabular format file
     """
-    cmd_nhmmscan = f"nhmmscan --tblout {tabular_outfile} --max -T 0.1"  \
+    cmd_nhmmscan = f"nhmmscan --tblout {tabular_outfile} --max -T 0.1 --cpu 16"  \
                    f" {hmm_full_file} {query_seq_db}> {regular_outfile}"
     try:
         if not os.path.exists(tabular_outfile):
             subprocess.check_output(cmd_nhmmscan, shell=True, stderr=subprocess.STDOUT)
 
     except subprocess.CalledProcessError:
-        console.print(
-            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Unable to run nhmmscan[/bold red]")
+        logger.log(
+            f"[bold red]Unable to run nhmmscan[/bold red]")
 
     return tabular_outfile
 
