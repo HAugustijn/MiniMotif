@@ -2,9 +2,9 @@
 
 ## Project Description
 
-Minimotif is a tool that detects transcription factor binding sites in a given genome. 
+MiniMotif is a tool that detects transcription factor binding sites in a given genome. 
 
-Minimotif detects transcription factor binding sites (TFBS) in a given genome, by combining the power of Position Weight Matrices (PWMs) and profile Hidden Markov Models (pHMMs). If the binding site of interest is gapless, then a Position Weight Matrix (PWM) is created and the tool MOODS is used to find any occurrences of the motif within the genome. Alternatively, if the binding site contains gaps (i.e. sigma factor binding sites with variable spacer length), then MiniMotif constructs profile Hidden Markov Models (pHMMs) and interrogates the genome with the nhmmscan flavor of HMMER. In addition, it allows the scanning of a genome with a premade set of TFBSs. 
+MiniMotif detects transcription factor binding sites (TFBS) in a given genome, by combining the power of Position Weight Matrices (PWMs) and profile Hidden Markov Models (pHMMs). If the binding site of interest is gapless, then a Position Weight Matrix (PWM) is created and the tool MOODS is used to find any occurrences of the motif within the genome. Alternatively, if the binding site contains gaps (i.e. sigma factor binding sites with variable spacer length), then MiniMotif constructs profile Hidden Markov Models (pHMMs) and interrogates the genome with the nhmmscan flavor of HMMER. In addition, it allows the scanning of a genome with a premade set of TFBSs. 
 
 ## Requirements
 
@@ -39,16 +39,23 @@ Note 2: Remember to activate the MiniMotif environment every time you use MiniMo
 Generally, MiniMotif can be used with the following command:
 
 ```
-python3 minimotif.py [optional arguments] -G [genome_file] -O [output_directory]
+python3 minimotif.py [optional arguments] -i [binding site fasta] -G [genome_file] -O [output_directory]
+
+Example: Given an input genome file test_genome.gbk and a binding site file test.fasta, the following command will output the results in the directory "output_dir":
+python3 minimotif.py -i test.fasta -G test_genome.gbk -O output_dir
+
 ```
 Please read the paragraphs included below for more information.
 
 ### 1) Query a genome with precalculated PWMs
 
-Minimotif requires a genome file in .gbk format and allows the automated search of a genome by a set of precalculated PWMs from transcription factors of Streptomyces coelicolor, using the following command:
+MiniMotif requires a genome file in .gbk format and allows the automated search of a genome by a set of precalculated PWMs from transcription factors of Streptomyces coelicolor, using the following command:
 
 ```
 python3 minimotif.py -pc -G [genome_file] -O [output_directory] 
+
+Example: Given an input genome file test_genome.gbk, the following command will output the results in the directory "output_dir":
+python3 minimotif.py -pc -G test_genome.gbk -O output_dir
 
 ```
 Notes: 
