@@ -143,10 +143,11 @@ def sh_max_finder(msa_obj):
                 shannon_entropy_list_ungapped.append(
                     shannon_entropy(column_nuc_list))
             # Extract the ungapped position with the max Shannon's entropy
-            max_ent_pos_value = max(shannon_entropy_list_ungapped)
-            max_ent_pos_index = shannon_entropy_list_gapped.index(
-                max_ent_pos_value)
-            max_ent_pos_sum = max_ent_pos_index, max_ent_pos_value
+            if len(shannon_entropy_list_ungapped) > 0:
+                max_ent_pos_value = max(shannon_entropy_list_ungapped)
+                max_ent_pos_index = shannon_entropy_list_gapped.index(
+                    max_ent_pos_value)
+                max_ent_pos_sum = max_ent_pos_index, max_ent_pos_value
         else:
             if "-" not in column_nuc_list:
                 # For this case, we only need to extract a column that is full
