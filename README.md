@@ -1,39 +1,61 @@
 # MiniMotif (beta version)
 
-## Introduction
+## Project Description
 
-Minimotif detects transcription factor binding sites in a given genome, by combining the power of Position Weight Matrices (PWMs) and profile Hidden Markov Models (pHMMs). If the binding site of interest is gapless, then a PWM is created and the tool MOODS is used to find any occurences of the motif within the genome. Alternatively, if the binding sites contain gaps (i.e sigma factor binding sites wih variable spacer length), then MiniMotif constructs pHMMs and interrogates the genome with the nhmmscan flavor of HMMer.
+MiniMotif is a tool that detects transcription factor binding sites in a given genome. 
 
-## Instalation
+MiniMotif detects transcription factor binding sites (TFBS) in a given genome, by combining the power of Position Weight Matrices (PWMs) and profile Hidden Markov Models (pHMMs). If the binding site of interest is gapless, then a Position Weight Matrix (PWM) is created and the tool MOODS is used to find any occurrences of the motif within the genome. Alternatively, if the binding site contains gaps (i.e. sigma factor binding sites with variable spacer length), then MiniMotif constructs profile Hidden Markov Models (pHMMs) and interrogates the genome with the nhmmscan flavor of HMMER. In addition, it allows the scanning of a genome with a premade set of TFBSs. 
 
-MiniMotif downloaded with the following command:
+## Requirements
+
+The following instructions require the installation of the following on your machine (links to installation guidelines) : 
+1. Git ( https://github.com/git-guides/install-git )
+2. conda ( https://conda.io/projects/conda/en/latest/user-guide/install/index.html )
+
+
+
+## Installation
+
+Download MiniMotif with the following command:
 
 ```
 git clone https://github.com/HAugustijn/MiniMotif.git
 ```
+Note: Requires installation of git.
 
-Then install all the dependencies from the minimotif.yml file with:
+Then install all the dependencies from the minimotif.yml file with the following:
 
 ```
+cd MiniMotif
 conda env create -f minimotif.yml minimotif
-conda activate minimotif
+conda activate MiniMotif 
 ```
+Note: Requires installation of conda.
+
+Note 2: Remember to activate the MiniMotif environment every time you use MiniMotif!
 
 ## Quick usage 
 
-In general, MiniMotif can be used with the following command:
+Generally, MiniMotif can be used with the following command:
 
 ```
-minimotif [optional arguments] -G [genome_file] -O [output_directory]
+python3 minimotif.py [optional arguments] -i [binding site fasta] -G [genome_file] -O [output_directory]
+
+Example: Given an input genome file test_genome.gbk and a binding site file test.fasta, the following command will output the results in the directory "output_dir":
+python3 minimotif.py -i test.fasta -G test_genome.gbk -O output_dir
+
 ```
-Please read the following paragraphs for further information.
+Please read the paragraphs included below for more information.
 
 ### 1) Query a genome with precalculated PWMs
 
-Minimotif requires a genome file in .gbk format and allows the automated search of a enome by a set of precalculated PWMs from transcription factors of Streptomyces coelicolor, using the following command:
+MiniMotif requires a genome file in .gbk format and allows the automated search of a genome by a set of precalculated PWMs from transcription factors of Streptomyces coelicolor, using the following command:
 
 ```
-minimotf -G [genome_file] -O [output_directory] -pc
+python3 minimotif.py -pc -G [genome_file] -O [output_directory] 
+
+Example: Given an input genome file test_genome.gbk, the following command will output the results in the directory "output_dir":
+python3 minimotif.py -pc -G test_genome.gbk -O output_dir
 
 ```
 Notes: 
@@ -42,7 +64,7 @@ Notes:
 
 ### 2) Query a genome using custom binding site sequences
 
-The user can specify a binding site file in a .fasta format, for a given transcription factor. Each sequence in the multi-fasta file corresponds to one binding site. The sequences are used to construct a binding site profile/
+The user can specify a binding site file in a .fasta format, for a given transcription factor. Each sequence in the multi-fasta file corresponds to one binding site. The sequences are used to construct a binding site profile.
 
 Example: test.fasta
 ```
@@ -59,17 +81,17 @@ AGTGGTGTAGACCACC
 >6
 ATTGGTCTAAACCACA
 ```
-Then, using the following command the tool decides if the profile is gapped or ungapped, based on an Information content  heuristic:
+Then, using the following command the tool decides if the profile is gapped or ungapped, based on a Shannon Information content heuristic:
 
 ```
-minimotif -i test.fasta -G [genome_file] -O [output_directory]
+python3 minimotif.py -i test.fasta -G [genome_file] -O [output_directory]
 ```
 If the user knows that the motif is gapped, ungapped or wants both the PWM and pHMM branches to be used, then the flag -am (--analysis-mode) allows it:
 
 ```
-minimotif -i test.fasta -am gapped -G [genome_file] -O [output_directory]
+python3 minimotif.py -i test.fasta -am gapped -G [genome_file] -O [output_directory]
 ```
-Notes: -am can be set to "ungapped" (PWMs), "gapped" (pHMMs), "both" (PWMs and pHMMs) and "auto"( Default)
+Notes: -am can be set to "ungapped" (PWMs), "gapped" (pHMMs), "both" (PWMs and pHMMs), and "auto"( Default)
 
 Here's a full description of all the optional arguments:
 
@@ -98,6 +120,11 @@ Optional arguments:
         sequence. Default: 1
     -am Analysis mode. Default: auto (gapped, ungapped, both)
 ```
+
+## References
+
+
+
 # License
 
 

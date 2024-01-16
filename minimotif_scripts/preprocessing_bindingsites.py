@@ -6,20 +6,28 @@ import subprocess
 import sys
 from rich.console import Console
 from datetime import datetime
-
-
-console = Console()
+from minimotif_scripts.logger import logger
 
 def is_fasta(filename):
     with open(filename, "r") as handle:
         fasta = SeqIO.parse(handle, "fasta")
         if not any(fasta):
-            console.print(
-                f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Please provide the input in fasta"
+            logger.log(
+                f"[bold red]Please provide the input in fasta"
                 f" format of file: {filename}[/bold red]")
             return False
         else:
             return True
+
+def check_fasta_length(fasta_file, min_width):
+    """ Check the length of the input sequences
+    """
+    with open(fasta_file, "r") as handle:
+        fasta = SeqIO.parse(handle, "fasta")
+        for record in fasta:
+            if len(record.seq) < min_width:
+                return False
+    return True
 
 
 def run_meme(fasta_file, outdir, min_width):
@@ -33,8 +41,8 @@ def run_meme(fasta_file, outdir, min_width):
             subprocess.check_output(cmd_meme, shell=True,
                                     stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError:
-        console.print(
-            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Unable to run meme with"
+        logger.log(
+            f"[bold red]Unable to run meme with"
             f" command: {cmd_meme}[/bold red]")
         sys.exit()
     return out_file
@@ -61,9 +69,11 @@ def parse_meme(meme_results):
     with open(meme_results, "r") as meme_out:
         consensus_motif, start_motif, end_motif = parse_motif_coordinates(meme_out)
         if not consensus_motif:
-            console.print(
-                f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Could not parse results from the "
+            logger.log(
+                f"[bold red]Could not parse results from the "
                 f"MEME output. Please check the MEME output[/bold red]")
+            return False, False
+
         else:
             # seek the index in the file and extract the motifs
             meme_out.seek(0)
@@ -71,4 +81,5 @@ def parse_meme(meme_results):
             motifs = txt[start_motif: end_motif - 1]
             for motif in motifs:
                 motif_list.append(motif.split(" ")[-4])
-    return consensus_motif, motif_list
+
+            return consensus_motif, motif_list

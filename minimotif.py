@@ -6,6 +6,13 @@ import os
 import json as jsonlib
 from rich.console import Console
 from datetime import datetime
+import logging
+import time
+import warnings
+
+# To avoid deprecation warnings from Biopython
+warnings.filterwarnings("ignore")
+
 
 
 parser = argparse.ArgumentParser(description="", usage='''
@@ -80,152 +87,192 @@ parser.add_argument('-am', '--analysis_mode', help= argparse.SUPPRESS, choices=[
 
 args = parser.parse_args() # parse arguments
 GB_REGIONS = {}  # dictionary to store the genbank regions
-console = Console() # Create console instance
 
 if not os.path.exists(args.outdir):
     os.mkdir(args.outdir)
 
+
+logger.start_timer()
+logger.log_only(f"Arguments: {args}")
+
+
 # TODO: This is optimised to receive multiple genbank files, shall the documentation be updated?
-
-for genbank_file in args.genbank:
-    # functions are part of parse_genbank.py
-    gb_name = genbank_file.split("/")[-1].split(".")[0]
-    if is_gbk(genbank_file):  # check gbk format
-        console.print(f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Extracting sequences from genbank"
-                      f" file: {gb_name}[/bold cyan]")
-        reg_region, co_region, up_region, complete_seq, gene_strand_dict, product_dict = parse_gb(genbank_file, args.coregion,
-                                                                                       args.regregion)
-        GB_REGIONS[genbank_file] = complete_seq
-        if args.coding:
-            write_fastas(co_region, "co", gb_name, args.outdir)
-        write_fastas(reg_region, "reg", gb_name, args.outdir)
-
-if args.precal:  # Run detection on precalculated PWMs
-    base = os.path.dirname(os.path.abspath(__file__))
-    path_pwm = os.path.join(base, 'bin/data/pwms.json')
-    with open(path_pwm, "r", encoding="utf-8") as file:
-        regulators = jsonlib.load(file)
-    for reg in regulators.keys():
-        pwm_file = f"{args.outdir}/{reg}_PWM.tsv"
-        pwm = pd.DataFrame(regulators[reg]['pwm'])
-        pwm.to_csv(pwm_file, sep="\t", index=False, index_label=False, header=False)
-
-        thresholds_pwm = [regulators[reg]['max_score'], regulators[reg]['min_score']]
-
-        for genbank_file in args.genbank:
-            gb_name = genbank_file.split("/")[-1].split(".")[0]
-            bg_dis = get_bg_distribution(GB_REGIONS[genbank_file])
-            reg_fasta = f"{args.outdir}/{gb_name}_reg_region.fasta"
+try:
+    for genbank_file in args.genbank:
+        # functions are part of parse_genbank.py
+        gb_name = genbank_file.split("/")[-1].split(".")[0]
+        if is_gbk(genbank_file):  # check gbk fomat
+            logger.log(f"[bold cyan]Extracting sequences from genbank"
+                          f" file: {gb_name}[/bold cyan]")
+            reg_region, co_region, up_region, complete_seq, gene_strand_dict, product_dict = parse_gb(genbank_file, args.coregion,
+                                                                                           args.regregion)
+            GB_REGIONS[genbank_file] = complete_seq
             if args.coding:
-                co_fasta = f"{args.outdir}/{gb_name}_co_region.fasta"
-                moods_results = run_moods(reg_fasta, pwm_file, "co", reg, args.outdir, bg_dis,
+                write_fastas(co_region, "co", gb_name, args.outdir)
+            write_fastas(reg_region, "reg", gb_name, args.outdir)
+
+    if args.precal:  # Run detection on precalculated PWMs
+        logger.log(f"[bold cyan]Running detection on precalculated PWMs for genome file {gb_name}[/bold cyan]")
+        base = os.path.dirname(os.path.abspath(__file__))
+        path_pwm = os.path.join(base, 'bin/data/pwms.json')
+        with open(path_pwm, "r", encoding="utf-8") as file:
+            regulators = jsonlib.load(file)
+        for reg in regulators.keys():
+            pwm_file = f"{args.outdir}/{reg}_PWM.tsv"
+            pwm = pd.DataFrame(regulators[reg]['pwm'])
+            pwm.to_csv(pwm_file, sep="\t", index=False, index_label=False, header=False)
+
+            thresholds_pwm = [regulators[reg]['max_score'], regulators[reg]['min_score']]
+
+            for genbank_file in args.genbank:
+                gb_name = genbank_file.split("/")[-1].split(".")[0]
+                bg_dis = get_bg_distribution(GB_REGIONS[genbank_file])
+                reg_fasta = f"{args.outdir}/{gb_name}_reg_region.fasta"
+                if args.coding:
+                    co_fasta = f"{args.outdir}/{gb_name}_co_region.fasta"
+                    moods_results = run_moods(reg_fasta, pwm_file, "co", reg, args.outdir, bg_dis,
+                                              gb_name, args.pvalue, args.batch)
+                    parse_moods(moods_results, reg, gb_name, "co", thresholds_pwm, args.outdir)
+                moods_results = run_moods(reg_fasta, pwm_file, "reg", reg, args.outdir, bg_dis,
                                           gb_name, args.pvalue, args.batch)
-                parse_moods(moods_results, reg, gb_name, "co", thresholds_pwm, args.outdir)
-            moods_results = run_moods(reg_fasta, pwm_file, "reg", reg, args.outdir, bg_dis,
-                                      gb_name, args.pvalue, args.batch)
-            parse_moods(moods_results, reg, gb_name, "reg", thresholds_pwm, args.outdir)
-
-else:
-    if args.input:
-        for input_file in args.input:
-            # functions are part of preprocessing_bindingsites.py
-            reg_name = input_file.split("/")[-1].split(".")[0]
-            if is_fasta(input_file):  # check fasta format
-                console.print(
-                    f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Analysing regulator:"
-                    f" {reg_name}[/bold cyan]")
-
-                # run MEME to extract the binding motif from the input sequences
-                meme_results = run_meme(input_file, args.outdir, args.min_width)
-                con_motif, motifs = parse_meme(meme_results)
-                meme_motif_fasta = f"{args.outdir}/{reg_name}.meme.fasta"
-                with open (meme_motif_fasta, "w") as outf:
-                    for i in range(len(motifs)):
-                        outf.write(">" + str(i) + "\n" + motifs[i] + "\n")
-                if not con_motif:
-                    pass
-                else:
-                    # functions are part of generate_sequence_logo.py
-                    pfm = create_pfm(motifs)  # construct position frequency matrix (PFM)
-                    shan_ic = get_ic(pfm)  # calculate information content (IC)
-                    if args.logo:
-                        create_logo(shan_ic, reg_name, args.outdir)
-
-                    # functions are part of method_selection.py
-                    mean_ic = calc_mean_ic(shan_ic)
-                    for genbank_file in args.genbank:
-                        if args.analysis_mode == 'auto':
-                            # TODO: Maybe also set an upper limit for the number of positions per motif?
-                            if len(shan_ic) >= 10:
-                                if mean_ic < 0.8:  # functions are part of detection_hmm.py
-                                    console.print(
-                                        f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Running HMM"
-                                        f" detection for a gapped sequence motif[/bold cyan]")
-                                    hmm_models = prep_hmm_detection(meme_motif_fasta, reg_name, args.spacermode,
-                                                                    args.ic_threshold, args.outdir)
-                                    run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                                      args.adjust_length, args.outdir, gene_strand_dict, product_dict)
-                                elif 0.8 <= mean_ic <= 1.2:  # functions are part of both detection_pwm/hmm.py
-                                    console.print(
-                                        f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Running both HMM"
-                                        f" and PWM detection[/bold cyan]")
-                                    ic_threshold = 1.4
-                                    mode = "positional_masking"
-                                    run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
-                                                      GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
-                                                      args.outdir)
-                                    hmm_models = prep_hmm_detection(meme_motif_fasta, reg_name, mode, ic_threshold,
-                                                                    args.outdir)
-                                    run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                                      args.adjust_length, args.outdir, gene_strand_dict, product_dict)
-
-                                elif mean_ic >= 1.2:  # functions are part of detection_pwm.py
-                                    console.print(
-                                        f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Running PWM "
-                                        f"detection for a ungapped sequence motif[/bold cyan]")
-                                    run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
-                                                      GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
-                                                      args.outdir)
-
-                            else:  # run PWM detection for short sequence motifs
-                                console.print(
-                                    f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Running PWM detection"
-                                    f" for a short sequence motif[/bold cyan]")
-                                run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
-                                                  GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
-                                                  args.outdir)
-                        elif args.analysis_mode == 'gapped':
-                            console.print(
-                                f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Running HMM detection "
-                                f"for a gapped sequence motif[/bold cyan]")
-                            hmm_models = prep_hmm_detection(input_file, reg_name, args.spacermode, args.ic_threshold,
-                                                            args.outdir)
-                            run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding, args.adjust_length,
-                                              args.outdir, gene_strand_dict, product_dict)
-                        elif args.analysis_mode == 'ungapped':
-                            console.print(
-                                f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Running PWM detection "
-                                f"for a ungapped sequence motif[/bold cyan]")
-                            run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name, GB_REGIONS[genbank_file],
-                                              args.coding, args.pvalue, args.batch, args.outdir)
-                        elif args.analysis_mode == 'both':
-                            console.print(
-                                f"[bold cyan]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Running both HMM and PWM"
-                                f" detection[/bold cyan]")
-
-                            ic_threshold = 1.4 # TODO: How is this defined?
-                            mode = "positional_masking"
-                            run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
-                                              GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
-                                              args.outdir)
-                            hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold, args.outdir)
-                            run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
-                                              args.adjust_length, args.outdir, gene_strand_dict, product_dict)
+                parse_moods(moods_results, reg, gb_name, "reg", thresholds_pwm, args.outdir)
 
         extensions_to_move = [".sto", ".hmm", ".fasta", ".meme", ".moods", "PWM.tsv"]
+        if os.path.exists(args.outdir + os.sep + "bin"):
+            shutil.rmtree(args.outdir + os.sep + "bin")
         movetodir(args.outdir + os.sep, "bin", extensions_to_move)
 
     else:
-        console.print(
-            f"[bold red]{ datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Please provide the input binding profiles in"
-            f" fasta format or use the -pc flag to run precalculated PWMs[/bold red]")
+        if args.input:
+            for input_file in args.input:
+                # functions are part of preprocessing_bindingsites.py
+                reg_name = input_file.split("/")[-1].split(".")[0]
+                if is_fasta(input_file):  # check fasta format
+                    logger.log(
+                        f"[bold cyan]Analysing regulator:"
+                        f" {reg_name}[/bold cyan]")
+
+                    # run MEME to extract the binding motif from the input sequences
+                    if check_fasta_length(input_file, args.min_width) == False:
+                        logger.log(
+                            f"[bold red]The input sequences are shorter"
+                            f" than the minimum width of the meme detection module for regulator {reg_name}. Please review"
+                            f" the input fasta file and adjust the -w argument according to your needs (default w=10). "
+                            f"[/bold red]")
+                        continue
+
+                    meme_results = run_meme(input_file, args.outdir, args.min_width)
+                    con_motif, motifs = parse_meme(meme_results)
+                    if con_motif == False and motifs == False:
+                        logger.log(
+                            f"[bold red]No motif could be extracted from"
+                            f" the input sequences for regulator {reg_name}, using MEME. Please review the input fasta file"
+                            f" and include more conserved binding sites. [/bold red]")
+                        continue
+
+                    meme_motif_fasta = f"{args.outdir}/{reg_name}.meme.fasta"
+                    with open (meme_motif_fasta, "w") as outf:
+                        for i in range(len(motifs)):
+                            outf.write(">" + str(i) + "\n" + motifs[i] + "\n")
+                    if not con_motif:
+                        pass
+                    else:
+                        # functions are part of generate_sequence_logo.py
+                        pfm = create_pfm(motifs)  # construct position frequency matrix (PFM)
+                        shan_ic = get_ic(pfm)  # calculate information content (IC)
+                        if args.logo:
+                            create_logo(shan_ic, reg_name, args.outdir)
+
+                        # functions are part of method_selection.py
+                        mean_ic = calc_mean_ic(shan_ic)
+                        for genbank_file in args.genbank:
+                            if args.analysis_mode == 'auto':
+                                # TODO: Maybe also set an upper limit for the number of positions per motif?
+                                # TODO: Kristy's heuristic for determining if a motif is gapped or not
+                                if len(shan_ic) >= 10:
+                                    if mean_ic < 0.8:  # functions are part of detection_hmm.py
+                                        logger.log(
+                                            f"[bold cyan]Running HMM"
+                                            f" detection for a gapped sequence motif[/bold cyan]")
+
+                                        hmm_models = prep_hmm_detection(input_file, reg_name, args.spacermode,
+                                                                        args.ic_threshold, args.outdir)
+                                        run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
+                                                          args.adjust_length, args.outdir, gene_strand_dict, product_dict)
+                                    elif 0.8 <= mean_ic <= 1.2:  # functions are part of both detection_pwm/hmm.py
+                                        logger.log(
+                                            f"[bold cyan]Running both HMM"
+                                            f" and PWM detection[/bold cyan]")
+                                        ic_threshold = 1.4
+                                        mode = "positional_masking"
+                                        run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                                          GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
+                                                          args.outdir)
+                                        hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold,
+                                                                        args.outdir)
+                                        run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
+                                                          args.adjust_length, args.outdir, gene_strand_dict, product_dict)
+
+                                    elif mean_ic >= 1.2:  # functions are part of detection_pwm.py
+                                        logger.log(
+                                            f"[bold cyan]Running PWM "
+                                            f"detection for a ungapped sequence motif[/bold cyan]")
+                                        run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                                          GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
+                                                          args.outdir)
+
+                                else:  # run PWM detection for short sequence motifs
+                                    logger.log(
+                                        f"[bold cyan]Running PWM detection"
+                                        f" for a short sequence motif[/bold cyan]")
+                                    run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                                      GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
+                                                      args.outdir)
+                            elif args.analysis_mode == 'gapped':
+                                logger.log(
+                                    f"[bold cyan]Running HMM detection "
+                                    f"for a gapped sequence motif[/bold cyan]")
+                                hmm_models = prep_hmm_detection(input_file, reg_name, args.spacermode, args.ic_threshold,
+                                                                args.outdir)
+                                run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding, args.adjust_length,
+                                                  args.outdir, gene_strand_dict, product_dict)
+                            elif args.analysis_mode == 'ungapped':
+                                logger.log(
+                                    f"[bold cyan]Running PWM detection "
+                                    f"for a ungapped sequence motif[/bold cyan]")
+                                run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name, GB_REGIONS[genbank_file],
+                                                  args.coding, args.pvalue, args.batch, args.outdir)
+                            elif args.analysis_mode == 'both':
+                                logger.log(
+                                    f"[bold cyan]Running both HMM and PWM"
+                                    f" detection[/bold cyan]")
+
+                                ic_threshold = 1.4 # TODO: How is this defined?
+                                mode = "positional_masking"
+                                run_pwm_detection(genbank_file, pfm, args.pseudocount, reg_name,
+                                                  GB_REGIONS[genbank_file], args.coding, args.pvalue, args.batch,
+                                                  args.outdir)
+                                hmm_models = prep_hmm_detection(input_file, reg_name, mode, ic_threshold, args.outdir)
+                                run_hmm_detection(genbank_file, reg_name, hmm_models, args.coding,
+                                                  args.adjust_length, args.outdir, gene_strand_dict, product_dict)
+
+            extensions_to_move = [".sto", ".hmm", ".fasta", ".meme", ".moods", "PWM.tsv"]
+            if os.path.exists(args.outdir + os.sep + "bin"):
+                shutil.rmtree(args.outdir + os.sep + "bin")
+            movetodir(args.outdir + os.sep, "bin", extensions_to_move)
+
+        else:
+            logger.log(
+                f"[bold red]Please provide the input binding profiles in"
+                f" fasta format or use the -pc flag to run precalculated PWMs[/bold red]")
+
+except Exception as e:
+    logger.log_error(str(e))
+    logger.print_only(str(e))
+    raise
+
+
+
+
+
+logger.stop_timer()

@@ -15,8 +15,8 @@ def is_gbk(filename):
     with open(filename, "r") as handle:
         gbk = SeqIO.parse(handle, "genbank")
         if not any(gbk):
-            console.print(
-                f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Please provide the genome input (-G)"
+            logger.log(
+                f"[bold red]Please provide the genome input (-G)"
                 f" in GenBank format for file: {filename}[/bold red]")
             return False
         else:
@@ -55,8 +55,8 @@ def parse_gb(genbank_file, cotrans_region, reg_region):
                         if type(gene_name) == list:
                             gene_name = gene_name[0]
                     else:
-                        console.print(
-                            f"[bold red]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Couldn't identify the CDS"
+                        logger.log(
+                            f"[bold red]Couldn't identify the CDS"
                             f" locus tag in the following qualifiers: {f.qualifiers}[/bold red]")
                     if "product" not in f.qualifiers.keys():
                         f.qualifiers["product"] = "N/A"
