@@ -45,21 +45,26 @@ Example: Given an input genome file test_genome.gbk and a binding site file test
 python3 minimotif.py -i test.fasta -G test_genome.gbk -O output_dir
 
 ```
-Please read the paragraphs included below for more information.
+You can run minimotif for a test case, that we include in this repository, using the following code:
+```
+python3 minimotif.py -pc -G test_data/test_genome.gb -O test_out
+# This will scan the test genome with precalculated PWMs, and store the output in a directory called test_out
+```
+For further information, please read carefully the following paragraphs.
 
 ### 1) Query a genome with precalculated PWMs
 
-MiniMotif requires a genome file in .gbk format and allows the automated search of a genome by a set of precalculated PWMs from transcription factors of Streptomyces coelicolor, using the following command:
+MiniMotif requires a genome file in .gb format and allows the automated search of a genome by a set of precalculated PWMs from transcription factors of Streptomyces coelicolor, using the following command:
 
 ```
 python3 minimotif.py -pc -G [genome_file] -O [output_directory] 
 
-Example: Given an input genome file test_genome.gbk, the following command will output the results in the directory "output_dir":
-python3 minimotif.py -pc -G test_genome.gbk -O output_dir
+Example: Given an input genome file test_genome.gb, the following command will output the results in the directory "output_dir":
+python3 minimotif.py -pc -G test_genome.gb -O output_dir
 
 ```
 Notes: 
-1. The genome filename has to be formatted as: [organism]_genome.gbk. i.e. scoe_genome.gbk.
+1. The genome filename has to be formatted as: [organism]_genome.gbk. i.e. scoe_genome.gb.
 2. Specifying an output directory is mandatory.
 
 ### 2) Query a genome using custom binding site sequences
@@ -81,15 +86,16 @@ AGTGGTGTAGACCACC
 >6
 ATTGGTCTAAACCACA
 ```
-Then, using the following command the tool decides if the profile is gapped or ungapped, based on a Shannon Information content heuristic:
+Then, using the following command the tool decides if the profile is gapped or ungapped, based on Shannon Information Content:
 
 ```
-python3 minimotif.py -i test.fasta -G [genome_file] -O [output_directory]
+python3 minimotif.py -i test.fasta -G test_genome.gb -O output_dir
+
 ```
 If the user knows that the motif is gapped, ungapped or wants both the PWM and pHMM branches to be used, then the flag -am (--analysis-mode) allows it:
 
 ```
-python3 minimotif.py -i test.fasta -am gapped -G [genome_file] -O [output_directory]
+python3 minimotif.py -i test.fasta -am gapped -G test_genome.gb -O output_dir
 ```
 Notes: -am can be set to "ungapped" (PWMs), "gapped" (pHMMs), "both" (PWMs and pHMMs), and "auto"( Default)
 
