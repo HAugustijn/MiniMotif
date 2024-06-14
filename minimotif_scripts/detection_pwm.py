@@ -1,5 +1,6 @@
 """ Script containing all functions for TFBS detection using PWMs """
 
+import collections
 import pandas as pd
 import seqlogo
 from collections import Counter
@@ -8,7 +9,10 @@ import subprocess
 from rich.console import Console
 from datetime import datetime
 from minimotif_scripts.logger import logger
-
+from Bio import SeqIO
+import itertools
+import re
+import lightmotif
 
 
 console = Console()
@@ -103,7 +107,7 @@ def parse_moods(moods_results, reg_name, gb_name, reg_type, thres, outdir):
             full_end_loc = int(start_loc) + int(loc) + int(len(seq))
             full_loc = f"{full_start_loc}:{full_end_loc}"
             conf = set_confidence(float(score), thres)
-            
+
             if "-" in region:
                 if not len(region.split('-')) > 2:
                     first_gene, second_gene = region.split('-')
@@ -157,6 +161,70 @@ def write_output(results_dict, reg_name, gb_name, reg_type, outdir):
     return
 
 
+def run_lightmotif(filename, pssm, pvalue_threshold, thresholds_pwm):
+    # compute matrix reverse-complement
+    pssm_rc = pssm.reverse_complement()
+
+    # scan all sequences in the input file
+    # NB(@althonos): This is embarassingly parallel and could be parallelized
+    #                using a `multiprocessing.pool.ThreadPool`.
+    results_dict = collections.defaultdict(list)
+    for record in SeqIO.parse(filename, "fasta"):
+
+        if not record.seq:
+            continue
+
+        # prepare the sequence for lightmotif
+        striped_sequence = lightmotif.stripe(str(record.seq))
+
+        # compute scores for both strands
+        fwd_scores = pssm.calculate(striped_sequence)
+        bwd_scores = pssm_rc.calculate(striped_sequence)
+
+        # extract indices above threshold for each strand
+        indices = itertools.chain(
+            zip(fwd_scores.threshold(pvalue_threshold), itertools.repeat("+")),
+            zip(bwd_scores.threshold(pvalue_threshold), itertools.repeat("-"))
+        )
+
+        # parse sequence headers
+        region, start_, end_, _ = re.search("([^~]*)~([0-9]+):([0-9]+)~(.*)", record.id).groups()
+
+        # record results
+        for i, strand in indices:
+            # get match coordinates
+            start = int(start_) + i
+            end = start + len(pssm)
+            score = fwd_scores[i] if strand == "+" else bwd_scores[i]
+            # get proper region coordinates
+            if region.count("-") == 1:
+                first_gene, second_gene = region.split('-')
+                range_region = ((int(end_) - int(start_))/2) + int(start_)
+                if start <= range_region:
+                    region = first_gene
+                else:
+                    region = second_gene
+            else:
+                region = region
+            # get sequence of binding site
+            seq = record.seq[i:i+len(pssm)]
+            if strand == "-":
+                seq = seq.reverse_complement()
+            # record match
+            results_dict[region].append([
+                f"{start}:{end}",
+                strand,
+                score,
+                set_confidence(score, thresholds_pwm),
+                seq,
+            ])
+
+    return results_dict
+
+    # write output
+    write_output(results_dict, reg_name, gb_name, reg_type, outdir)
+
+
 def run_pwm_detection(genbank_file, pfm, pseudocount, reg_name, gbk_regions, coding, pvalue, batch, outdir):
     """ Run MOODS to detect TFBS occurrences """
     gb_name = genbank_file.split("/")[-1].split(".")[0]
@@ -164,11 +232,15 @@ def run_pwm_detection(genbank_file, pfm, pseudocount, reg_name, gbk_regions, cod
 
     pwm_file, pwm = create_pwm(pfm, pseudocount, outdir, reg_name)
     thresholds_pwm = set_threshold(pwm)
+
+    scoring_matrix = lightmotif.ScoringMatrix("ACGT", dict(A=list(pwm.loc["A"]), T=list(pwm.loc["T"]), G=list(pwm.loc["G"]), C=list(pwm.loc["C"])))
+    pvalue_threshold = scoring_matrix.score(pvalue)
+
     if coding:
         co_fasta = f"{outdir}/{gb_name}_co_region.fasta"
-        moods_results = run_moods(co_fasta, pwm_file, "co", reg_name, outdir, bg_dis, gb_name, pvalue, batch)
-        parse_moods(moods_results, reg_name, gb_name, "co", thresholds_pwm, outdir)
+        results = run_lightmotif(co_fasta, scoring_matrix, pvalue_threshold, thresholds_pwm)
+        write_output(results, reg_name, gb_name, "co", outdir)
 
     reg_fasta = f"{outdir}/{gb_name}_reg_region.fasta"
-    moods_results = run_moods(reg_fasta, pwm_file, "reg", reg_name, outdir, bg_dis, gb_name, pvalue, batch)
-    parse_moods(moods_results, reg_name, gb_name, "reg", thresholds_pwm, outdir)
+    results = run_lightmotif(reg_fasta, scoring_matrix, pvalue_threshold, thresholds_pwm)
+    write_output(results, reg_name, gb_name, "reg", outdir)
