@@ -162,6 +162,8 @@ def write_output(results_dict, reg_name, gb_name, reg_type, outdir):
 
 
 def run_lightmotif(filename, pssm, pvalue_threshold, thresholds_pwm):
+    # compile a regular expression to parse the record headers
+    header_rx = re.compile("([^~]*)~([0-9]+):([0-9]+)~(.*)")
     # compute matrix reverse-complement
     pssm_rc = pssm.reverse_complement()
 
@@ -188,7 +190,7 @@ def run_lightmotif(filename, pssm, pvalue_threshold, thresholds_pwm):
         )
 
         # parse sequence headers
-        region, start_, end_, _ = re.search("([^~]*)~([0-9]+):([0-9]+)~(.*)", record.id).groups()
+        region, start_, end_, _ = header_rx.search(record.id).groups()
 
         # record results
         for i, strand in indices:
