@@ -190,7 +190,7 @@ def run_lightmotif(filename, pssm, pvalue_threshold, thresholds_pwm):
         )
 
         # parse sequence headers
-        region, start_, end_, _ = header_rx.search(record.id).groups()
+        region_, start_, end_, _ = header_rx.search(record.id).groups()
 
         # record results
         for i, strand in indices:
@@ -199,15 +199,15 @@ def run_lightmotif(filename, pssm, pvalue_threshold, thresholds_pwm):
             end = start + len(pssm)
             score = fwd_scores[i] if strand == "+" else bwd_scores[i]
             # get proper region coordinates
-            if region.count("-") == 1:
-                first_gene, second_gene = region.split('-')
+            if region_.count("-") == 1:
+                first_gene, second_gene = region_.split('-')
                 range_region = ((int(end_) - int(start_))/2) + int(start_)
                 if start <= range_region:
                     region = first_gene
                 else:
                     region = second_gene
             else:
-                region = region
+                region = region_
             # get sequence of binding site
             seq = record.seq[i:i+len(pssm)]
             if strand == "-":
@@ -222,9 +222,6 @@ def run_lightmotif(filename, pssm, pvalue_threshold, thresholds_pwm):
             ])
 
     return results_dict
-
-    # write output
-    write_output(results_dict, reg_name, gb_name, reg_type, outdir)
 
 
 def run_pwm_detection(genbank_file, pfm, pseudocount, reg_name, gbk_regions, coding, pvalue, batch, outdir):
