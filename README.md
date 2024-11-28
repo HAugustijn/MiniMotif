@@ -1,4 +1,4 @@
-# MiniMotif (beta version)
+# MiniMotif
 
 ## Project Description
 
